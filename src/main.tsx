@@ -91,11 +91,25 @@ const PortalHeader: React.FC<{ user: User; onLogout: () => void; onShowProfile: 
 
 const App: React.FC = () => {
   React.useEffect(() => {
-    if (!autoBackupService.shouldExecuteBackup()) return;
-    autoBackupService.executeAutoBackup().then(result => {
-      if (result.backupCreated) console.log('[CS] Backup automático criado:', result.message);
+    const runBackup = async () => {
+      if (!autoBackupService.shouldExecuteBackup()) {
+        console.log('[CS] ⏭️ Backup já verificado recentemente');
+        return;
+      }
+      console.log('[CS] ⏰ Aguardando 5 segundos antes de verificar backup...');
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      console.log('[CS] 🔄 Verificando necessidade de backup automático...');
+      const result = await autoBackupService.executeAutoBackup();
+      if (result.success && result.backupCreated) {
+        console.log('[CS] ✅ Backup automático criado:', result.message);
+      } else if (result.success && !result.backupCreated) {
+        console.log('[CS] ℹ️ Backup não necessário:', result.message);
+      } else {
+        console.error('[CS] ❌ Erro no backup automático:', result.message);
+      }
       autoBackupService.markBackupChecked();
-    });
+    };
+    runBackup();
   }, []);
 
   const currentUser: User = {
