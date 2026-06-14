@@ -17,15 +17,24 @@ let supabase: SupabaseClient | null = null;
 export const getSupabase = (): SupabaseClient | null => {
   if (supabase) return supabase;
   
-  const url = import.meta.env.VITE_SUPABASE_URL || (window as any).VITE_SUPABASE_URL || (globalThis as any).VITE_SUPABASE_URL;
-  const key = import.meta.env.VITE_SUPABASE_ANON_KEY || (window as any).VITE_SUPABASE_ANON_KEY || (globalThis as any).VITE_SUPABASE_ANON_KEY;
-  
+  const url = import.meta.env.VITE_SUPABASE_URL || (window as any).VITE_SUPABASE_URL || (globalThis as any).VITE_SUPABASE_URL || 'https://nkohoaygnnpvmjattzit.supabase.co';
+  const key = import.meta.env.VITE_SUPABASE_ANON_KEY || (window as any).VITE_SUPABASE_ANON_KEY || (globalThis as any).VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5rb2hvYXlnbm5wdm1qYXR0eml0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxNTczODQsImV4cCI6MjA4MDczMzM4NH0.Rgdw60nC8FkNjSdC4DAQMK4PR8C-bySxxJ5lYEipuJk';
+
   if (!url || !key) {
     console.warn('[Supabase] Configuração ausente: URL ou KEY não encontrada');
     return null;
   }
-  
-  supabase = createClient(url, key);
+
+  try { localStorage.removeItem(`sb-${new URL(url).hostname.split('.')[0]}-auth-token`); } catch { /* noop */ }
+
+  supabase = createClient(url, key, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+      storage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+    },
+  });
   console.log('[Supabase] Cliente inicializado');
   return supabase;
 };
