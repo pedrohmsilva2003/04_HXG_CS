@@ -126,6 +126,39 @@ const saveUsers = (users: User[]) => {
 
 export const userService = {
     login: async (email: string, password: string): Promise<User> => {
+        const isDev = (import.meta as any).env?.DEV;
+        if (!isDev) {
+            const supabase = getSupabase();
+            if (supabase) {
+                const { data, error } = await supabase
+                    .from('app_users')
+                    .select('*')
+                    .eq('email', email.toLowerCase())
+                    .maybeSingle();
+                if (error) throw new Error('Erro ao consultar o banco de dados.');
+                if (!data) throw new Error('E-mail ou senha inválidos.');
+                const passwordOk = await verifyPassword(password, data.password ?? '');
+                if (!passwordOk) throw new Error('E-mail ou senha inválidos.');
+                if (data.status === 'pending') throw new Error('Sua conta aguarda aprovação de um gerente.');
+                if (data.status === 'blocked') throw new Error('Sua conta foi bloqueada.');
+                if (data.password && !isHashed(data.password)) {
+                    const hashed = await hashPassword(password);
+                    await supabase.from('app_users').update({ password: hashed }).eq('id', data.id);
+                }
+                const user: User = {
+                    id: data.id, name: data.name, email: data.email,
+                    password: data.password ?? '', department: data.department ?? undefined,
+                    role: data.role, status: data.status ?? 'active',
+                    permissions: data.permissions ?? undefined,
+                    canDeleteApproved: data.canDeleteApproved ?? false,
+                    mustChangePassword: data.must_change_password ?? false,
+                    createdAt: data.createdAt ?? new Date().toISOString(),
+                };
+                localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+                return user;
+            }
+        }
+        // DEV fallback: localStorage
         const users = getUsers();
         const userByEmail = users.find(u => u.email.toLowerCase() === email.toLowerCase());
 
@@ -145,7 +178,6 @@ export const userService = {
             throw new Error("Sua conta foi bloqueada.");
         }
 
-        // Migração automática: rehasha senhas em texto puro
         if (!isHashed(userByEmail.password)) {
             const allUsers = getUsers();
             const idx = allUsers.findIndex(u => u.email.toLowerCase() === email.toLowerCase());

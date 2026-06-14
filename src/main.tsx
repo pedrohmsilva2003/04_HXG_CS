@@ -4,6 +4,11 @@ import { LogOut } from 'lucide-react';
 import './index.css';
 import type { User } from './types';
 import { autoBackupService } from './services/autoBackupService';
+import { userService } from './services/userService';
+import { getSupabase } from './services/cloudSync';
+import LoginPage from './components/LoginPage';
+
+const CURRENT_USER_KEY = 'app_current_user';
 
 const PortalHeader: React.FC<{ user: User; onLogout: () => void; onShowProfile: () => void }> = ({ user, onLogout, onShowProfile }) => {
   const roleLabel = user.role === 'manager' ? 'Gestor' : 'Colaborador';
@@ -90,6 +95,10 @@ const PortalHeader: React.FC<{ user: User; onLogout: () => void; onShowProfile: 
 };
 
 const App: React.FC = () => {
+  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
+  const [authLoading, setAuthLoading] = React.useState(true);
+
+  // Auto backup
   React.useEffect(() => {
     const runBackup = async () => {
       if (!autoBackupService.shouldExecuteBackup()) {
@@ -112,21 +121,76 @@ const App: React.FC = () => {
     runBackup();
   }, []);
 
-  const currentUser: User = {
-    id: '1',
-    email: 'dev@hexagon.com',
-    name: 'Usuário Dev',
-    role: 'manager',
-    password: '',
-    status: 'active',
-    createdAt: new Date().toISOString(),
+  // Auth: SSO from Portal (?auth=TOKEN) or localStorage
+  React.useEffect(() => {
+    const initAuth = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const authParam = urlParams.get('auth');
+      if (authParam) {
+        try {
+          const decoded = JSON.parse(atob(decodeURIComponent(authParam)));
+          if (decoded.email && typeof decoded.issuedAt === 'number') {
+            const tokenAge = Date.now() - decoded.issuedAt;
+            if (tokenAge < 24 * 60 * 60 * 1000) {
+              const supabase = getSupabase();
+              if (supabase) {
+                const { data } = await supabase
+                  .from('app_users').select('*')
+                  .eq('email', decoded.email.toLowerCase()).maybeSingle();
+                if (data && data.status === 'active') {
+                  const ssoUser: User = {
+                    id: data.id, name: data.name, email: data.email,
+                    password: data.password ?? '', department: data.department ?? undefined,
+                    role: data.role, status: data.status ?? 'active',
+                    permissions: data.permissions ?? undefined,
+                    canDeleteApproved: data.canDeleteApproved ?? false,
+                    mustChangePassword: data.must_change_password ?? false,
+                    createdAt: data.createdAt ?? new Date().toISOString(),
+                  };
+                  localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(ssoUser));
+                  setCurrentUser(ssoUser);
+                  window.history.replaceState({}, document.title, window.location.pathname);
+                  console.log('[CS] ✅ SSO do Portal: login automático para', ssoUser.email);
+                  setAuthLoading(false);
+                  return;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[CS] SSO token inválido:', e);
+        }
+      }
+      const stored = userService.getCurrentUser();
+      if (stored) setCurrentUser(stored);
+      setAuthLoading(false);
+    };
+    initAuth();
+  }, []);
+
+  const handleLogout = () => {
+    userService.logout();
+    setCurrentUser(null);
   };
+
+  if (authLoading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+        <div style={{ width: '40px', height: '40px', border: '4px solid #e2e8f0', borderTop: '4px solid #005198', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <LoginPage onLoginSuccess={setCurrentUser} />;
+  }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
       <PortalHeader
         user={currentUser}
-        onLogout={() => {}}
+        onLogout={handleLogout}
         onShowProfile={() => {}}
       />
       <main style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 16px', width: '100%', flex: 1 }}>
