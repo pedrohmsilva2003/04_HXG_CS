@@ -48,7 +48,7 @@ class AutoBackupService {
       const supabase = getSupabase();
       if (!supabase) return false;
       const { data, error } = await supabase
-        .from('backup_locks').select('locked_at').eq('lock_key', this.lockKey).single();
+        .from('backup_locks').select('locked_at').eq('lock_key', this.lockKey).maybeSingle();
       if (error || !data) return false;
       return (Date.now() - new Date(data.locked_at).getTime()) < 5 * 60 * 1000;
     } catch { return false; }
@@ -80,7 +80,7 @@ class AutoBackupService {
         .select('id,timestamp,version,data_hash,record_count,size,created_at')
         .eq('app_id', APP_ID)
         .order('created_at', { ascending: false })
-        .limit(1).single();
+        .limit(1).maybeSingle();
       if (error || !data) return null;
       return { id: data.id, timestamp: data.timestamp, version: data.version, dataHash: data.data_hash, recordCount: data.record_count, size: data.size, createdAt: data.created_at };
     } catch { return null; }
