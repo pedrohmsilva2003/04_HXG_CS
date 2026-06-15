@@ -138,6 +138,7 @@ export interface ApontamentoAtivo {
   servico_id?: string;
   servico_codigo: string;
   servico_descricao: string;
+  familia_equipamento?: string;
   tecnico_id: string;
   tecnico_nome: string;
   tecnico_email: string;
@@ -157,6 +158,7 @@ export interface ApontamentoCS {
   servico_id?: string;
   servico_codigo: string;
   servico_descricao: string;
+  familia_equipamento?: string;
   inicio: string;
   fim?: string;
   tempo_produtivo_minutos?: number;
@@ -211,4 +213,26 @@ export interface MetricasTecnico {
   meta_minutos: number;
   por_dia: MetricasDia[];
   por_servico: { servico: string; minutos: number; qtd: number }[];
+}
+
+// ── BRM ──────────────────────────────────────────────────────
+
+export type FamiliaEquipamento = 'NOVA series' | 'High End' | 'Manual';
+
+export interface SSPConfig {
+  familia: string;
+  servico_codigo: string;
+  ssp_horas: number;
+}
+
+export interface BRMEficienciaRow {
+  familia: string;
+  servico_codigo: string;
+  servico_descricao: string;
+  count: number;
+  avg_horas: number;
+  max_horas: number;
+  min_horas: number;
+  ssp_horas: number;
+  eficiencia: number;
 }

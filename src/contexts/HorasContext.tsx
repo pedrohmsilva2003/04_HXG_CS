@@ -138,6 +138,7 @@ export const HorasProvider: React.FC<Props> = ({ children, user }) => {
         servico_id: created.servico_id,
         servico_codigo: created.servico_codigo,
         servico_descricao: created.servico_descricao,
+        familia_equipamento: created.familia_equipamento,
         tecnico_id: created.tecnico_id,
         tecnico_nome: created.tecnico_nome,
         tecnico_email: created.tecnico_email,

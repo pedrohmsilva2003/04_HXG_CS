@@ -5,6 +5,8 @@ import type {
   PausaApontamentoCS,
   OSAdministrativaCS,
   ApontamentoAtivo,
+  SSPConfig,
+  BRMEficienciaRow,
 } from '../types';
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -67,6 +69,7 @@ export interface CriarApontamentoInput {
   servico_id?: string;
   servico_codigo: string;
   servico_descricao: string;
+  familia_equipamento?: string;
   observacao_inicial?: string;
 }
 
@@ -82,6 +85,7 @@ export async function criarApontamento(input: CriarApontamentoInput): Promise<Ap
       servico_id: input.servico_id ?? null,
       servico_codigo: input.servico_codigo,
       servico_descricao: input.servico_descricao,
+      familia_equipamento: input.familia_equipamento ?? null,
       observacao_inicial: input.observacao_inicial ?? null,
       inicio: now,
       status: 'em_andamento',
@@ -326,4 +330,69 @@ export async function getMetricasPeriodo(
     qtd_os: osSet.size,
     por_servico: Array.from(byServico.values()),
   };
+}
+
+// ── BRM ───────────────────────────────────────────────────────
+
+export async function getSSPConfig(): Promise<SSPConfig[]> {
+  const { data, error } = await supabase.from('ssp_config_cs').select('*').order('familia').order('servico_codigo');
+  if (error) throw error;
+  return (data ?? []) as SSPConfig[];
+}
+
+export async function upsertSSPConfig(familia: string, servico_codigo: string, ssp_horas: number): Promise<void> {
+  const { error } = await supabase.from('ssp_config_cs').upsert({ familia, servico_codigo, ssp_horas, updated_at: new Date().toISOString() });
+  if (error) throw error;
+}
+
+export async function getBRMEficiencia(dataInicio: string, dataFim: string): Promise<BRMEficienciaRow[]> {
+  const { data } = await supabase
+    .from('apontamentos_cs')
+    .select('familia_equipamento, servico_codigo, servico_descricao, tempo_produtivo_minutos')
+    .eq('status', 'finalizado')
+    .is('deleted_at', null)
+    .not('familia_equipamento', 'is', null)
+    .gte('inicio', toISO(dataInicio))
+    .lte('inicio', toISO(dataFim + 'T23:59:59'));
+
+  const rows = (data ?? []) as Pick<ApontamentoCS, 'familia_equipamento' | 'servico_codigo' | 'servico_descricao' | 'tempo_produtivo_minutos'>[];
+  const sspConfig = await getSSPConfig();
+  const sspMap = new Map(sspConfig.map(s => [`${s.familia}|${s.servico_codigo}`, s.ssp_horas]));
+
+  const groups = new Map<string, { familia: string; servico_codigo: string; servico_descricao: string; horas: number[] }>();
+  for (const r of rows) {
+    if (!r.familia_equipamento) continue;
+    const key = `${r.familia_equipamento}|${r.servico_codigo}`;
+    if (!groups.has(key)) groups.set(key, { familia: r.familia_equipamento, servico_codigo: r.servico_codigo, servico_descricao: r.servico_descricao, horas: [] });
+    groups.get(key)!.horas.push((r.tempo_produtivo_minutos ?? 0) / 60);
+  }
+
+  const familiaOrder = ['NOVA series', 'High End', 'Manual'];
+  const result: BRMEficienciaRow[] = Array.from(groups.values()).map(g => {
+    const count = g.horas.length;
+    const avg = count > 0 ? g.horas.reduce((a, b) => a + b, 0) / count : 0;
+    const max = count > 0 ? Math.max(...g.horas) : 0;
+    const min = count > 0 ? Math.min(...g.horas) : 0;
+    const ssp = sspMap.get(`${g.familia}|${g.servico_codigo}`) ?? 0;
+    return { familia: g.familia, servico_codigo: g.servico_codigo, servico_descricao: g.servico_descricao, count, avg_horas: avg, max_horas: max, min_horas: min, ssp_horas: ssp, eficiencia: avg > 0 ? (ssp / avg) * 100 : 0 };
+  });
+
+  return result.sort((a, b) => {
+    const diff = familiaOrder.indexOf(a.familia) - familiaOrder.indexOf(b.familia);
+    return diff !== 0 ? diff : a.servico_codigo.localeCompare(b.servico_codigo);
+  });
+}
+
+export async function getBRMUtilizacao(dataInicio: string, dataFim: string): Promise<{ total_minutos_produtivos: number; qtd_tecnicos: number }> {
+  const { data } = await supabase
+    .from('apontamentos_cs')
+    .select('tecnico_id, tempo_produtivo_minutos')
+    .eq('status', 'finalizado')
+    .is('deleted_at', null)
+    .gte('inicio', toISO(dataInicio))
+    .lte('inicio', toISO(dataFim + 'T23:59:59'));
+  const rows = (data ?? []) as Pick<ApontamentoCS, 'tecnico_id' | 'tempo_produtivo_minutos'>[];
+  const total = rows.reduce((s, r) => s + (r.tempo_produtivo_minutos ?? 0), 0);
+  const tecnicos = new Set(rows.map(r => r.tecnico_id)).size;
+  return { total_minutos_produtivos: total, qtd_tecnicos: tecnicos };
 }

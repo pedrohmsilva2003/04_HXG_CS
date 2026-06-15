@@ -13,6 +13,7 @@ const IniciarApontamento: React.FC<Props> = ({ user }) => {
 
   const [nrOs, setNrOs] = useState('');
   const [servicoCodigo, setServicoCodigo] = useState('');
+  const [familiaEquip, setFamiliaEquip] = useState('');
   const [observacao, setObservacao] = useState('');
   const [osInfo, setOsInfo] = useState<OSAdministrativaCS | null>(null);
   const [osLoading, setOsLoading] = useState(false);
@@ -73,6 +74,7 @@ const IniciarApontamento: React.FC<Props> = ({ user }) => {
         servico_id: servico.id,
         servico_codigo: servico.codigo,
         servico_descricao: servico.descricao,
+        familia_equipamento: familiaEquip || undefined,
         observacao_inicial: observacao || undefined,
         osInfo,
       });
@@ -343,6 +345,29 @@ const IniciarApontamento: React.FC<Props> = ({ user }) => {
               OS não encontrada na base — você ainda pode registrar o apontamento.
             </div>
           )}
+        </div>
+
+        {/* Equipment family */}
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
+            Família do Equipamento <span style={{ fontWeight: 400, color: '#9CA3AF' }}>(para relatório BRM)</span>
+          </label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+            {(['NOVA series', 'High End', 'Manual'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setFamiliaEquip(familiaEquip === f ? '' : f)}
+                style={{
+                  padding: '10px 8px', borderRadius: '10px', cursor: 'pointer', textAlign: 'center',
+                  border: `2px solid ${familiaEquip === f ? '#83c410' : '#E5E7EB'}`,
+                  background: familiaEquip === f ? '#F0FDF4' : 'white',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <div style={{ fontSize: '12px', fontWeight: 700, color: familiaEquip === f ? '#15803D' : '#374151' }}>{f}</div>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Service type */}
