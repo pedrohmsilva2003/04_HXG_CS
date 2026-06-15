@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Play, BarChart2, ClipboardList, Users, FileText, TrendingUp } from 'lucide-react';
+import { Play, BarChart2, ClipboardList, Users, FileText, TrendingUp, Upload } from 'lucide-react';
 import IniciarApontamento from '../components/horas/IniciarApontamento';
 import DashboardTecnico from '../components/horas/DashboardTecnico';
 import DashboardGerencial from '../components/horas/DashboardGerencial';
 import RelatoriosHoras from '../components/horas/RelatoriosHoras';
 import RelatoriosBRM from '../components/horas/RelatoriosBRM';
+import ImportarPlanilha from '../components/horas/ImportarPlanilha';
 import { useHoras } from '../contexts/HorasContext';
 import type { User } from '../types';
 
@@ -12,7 +13,7 @@ interface Props {
   user: User;
 }
 
-type Tab = 'apontamento' | 'dashboard' | 'gerencial' | 'relatorios' | 'brm';
+type Tab = 'apontamento' | 'dashboard' | 'gerencial' | 'relatorios' | 'brm' | 'importar';
 
 const HorasPage: React.FC<Props> = ({ user }) => {
   const { apontamentoAtivo } = useHoras();
@@ -25,6 +26,7 @@ const HorasPage: React.FC<Props> = ({ user }) => {
     { id: 'relatorios', label: 'Relatórios', icon: <FileText size={16} /> },
     { id: 'gerencial', label: 'Gerencial', icon: <Users size={16} />, managerOnly: true },
     { id: 'brm', label: 'BRM', icon: <TrendingUp size={16} />, managerOnly: true },
+    { id: 'importar', label: 'Importar', icon: <Upload size={16} />, managerOnly: true },
   ];
 
   const visibleTabs = tabs.filter(t => !t.managerOnly || isManager);
@@ -133,6 +135,9 @@ const HorasPage: React.FC<Props> = ({ user }) => {
         )}
         {activeTab === 'brm' && isManager && (
           <RelatoriosBRM />
+        )}
+        {activeTab === 'importar' && isManager && (
+          <ImportarPlanilha />
         )}
       </div>
 

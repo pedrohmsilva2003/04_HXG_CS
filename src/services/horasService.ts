@@ -407,6 +407,62 @@ export async function getBRMEficiencia(dataInicio: string, dataFim: string, agru
   return result.sort((a, b) => a.grupo.localeCompare(b.grupo) || a.servico_codigo.localeCompare(b.servico_codigo));
 }
 
+// ── Import de planilhas ───────────────────────────────────────
+
+export interface OSImportRow {
+  nr_os: string;
+  emp?: string | null;
+  item?: string | null;
+  descricao?: string | null;
+  nr_serie?: string | null;
+  cod_cliente?: string | null;
+  razao_social?: string | null;
+  tipo?: string | null;
+  tipo_os?: string | null;
+  dt_os?: string | null;
+  encerramento?: string | null;
+  valor?: number | null;
+  situacao?: string | null;
+  estagio?: string | null;
+  ult_estagio?: string | null;
+}
+
+export async function upsertBaseOS(rows: OSImportRow[]): Promise<number> {
+  const valid = rows.filter(r => r.nr_os?.trim());
+  let total = 0;
+  for (let i = 0; i < valid.length; i += 100) {
+    const chunk = valid.slice(i, i + 100);
+    const { error } = await supabase
+      .from('base_administrativa_cs')
+      .upsert(chunk, { onConflict: 'nr_os' });
+    if (error) throw error;
+    total += chunk.length;
+  }
+  return total;
+}
+
+export interface EquipamentoImportRow {
+  referencia: string;
+  descricao?: string | null;
+  familia?: string | null;
+  modelo?: string | null;
+  clase?: string | null;
+}
+
+export async function upsertBaseEquipamentos(rows: EquipamentoImportRow[]): Promise<number> {
+  const valid = rows.filter(r => r.referencia?.trim());
+  let total = 0;
+  for (let i = 0; i < valid.length; i += 100) {
+    const chunk = valid.slice(i, i + 100);
+    const { error } = await supabase
+      .from('base_equipamentos_cs')
+      .upsert(chunk, { onConflict: 'referencia' });
+    if (error) throw error;
+    total += chunk.length;
+  }
+  return total;
+}
+
 export async function getBRMUtilizacao(dataInicio: string, dataFim: string): Promise<{ total_minutos_produtivos: number; qtd_tecnicos: number }> {
   const { data } = await supabase
     .from('apontamentos_cs')
