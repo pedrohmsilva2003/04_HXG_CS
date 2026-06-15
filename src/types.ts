@@ -184,7 +184,7 @@ export interface OSAdministrativaCS {
   id: string;
   nr_os: string;
   emp?: string;
-  item?: string;
+  item?: string;       // Coluna B da planilha de OS → referência do equipamento
   descricao?: string;
   nr_serie?: string;
   cod_cliente?: string;
@@ -196,6 +196,7 @@ export interface OSAdministrativaCS {
   valor?: number;
   situacao?: string;
   estagio?: string;
+  familia_equipamento?: string; // resolvida via join com base_equipamentos_cs
 }
 
 export interface MetricasDia {

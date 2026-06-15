@@ -53,10 +53,19 @@ export async function buscarOS(nrOs: string): Promise<OSAdministrativaCS | null>
 export async function pesquisarOS(termo: string, limit = 10): Promise<OSAdministrativaCS[]> {
   const { data } = await supabase
     .from('base_administrativa_cs')
-    .select('id, nr_os, descricao, razao_social, situacao, estagio')
+    .select('id, nr_os, item, descricao, razao_social, situacao, estagio')
     .or(`nr_os.ilike.%${termo}%,descricao.ilike.%${termo}%,razao_social.ilike.%${termo}%`)
     .limit(limit);
   return (data ?? []) as OSAdministrativaCS[];
+}
+
+export async function buscarFamiliaByItem(item: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('base_equipamentos_cs')
+    .select('familia')
+    .eq('referencia', item.trim())
+    .maybeSingle();
+  return (data as { familia?: string } | null)?.familia ?? null;
 }
 
 // ── Criar Apontamento ─────────────────────────────────────────
