@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { Download, Filter, Search, RefreshCw, AlertCircle, FileText } from 'lucide-react';
+import { Download, Filter, Search, RefreshCw, AlertCircle, FileText, Table2 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { getApontamentos, getTecnicos, type FiltroApontamentos } from '../../services/horasService';
 import type { ApontamentoCS } from '../../types';
 import { useHoras } from '../../contexts/HorasContext';
@@ -8,6 +9,8 @@ interface Props {
   isManager: boolean;
   userId: string;
 }
+
+// ── Helpers ────────────────────────────────────────────────────────────────
 
 function minToStr(min: number): string {
   const h = Math.floor(min / 60);
@@ -48,39 +51,117 @@ function dateRangePreset(preset: string): { inicio: string; fim: string } {
   }
 }
 
-function exportCSV(rows: ApontamentoCS[]): void {
-  const headers = [
-    'OS', 'Técnico', 'Serviço', 'Data', 'Início', 'Fim',
-    'Tempo Produtivo (min)', 'Tempo Pausa (min)', 'Status', 'Obs. Inicial', 'Obs. Final',
-  ];
-  const csvRows = [
-    headers.join(';'),
-    ...rows.map(r => [
-      r.nr_os,
-      r.tecnico_nome,
-      r.servico_descricao,
-      formatDateBR(r.inicio),
-      formatHHMM(r.inicio),
-      r.fim ? formatHHMM(r.fim) : '',
-      r.tempo_produtivo_minutos ?? '',
-      r.tempo_pausa_minutos ?? '',
-      r.status,
-      (r.observacao_inicial ?? '').replace(/;/g, ','),
-      (r.observacao_final ?? '').replace(/;/g, ','),
-    ].join(';')),
-  ].join('\n');
+// ── Excel export ──────────────────────────────────────────────────────────
 
-  const bom = '﻿';
-  const blob = new Blob([bom + csvRows], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `apontamentos_${new Date().toISOString().split('T')[0]}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+function setColWidths(ws: XLSX.WorkSheet, widths: number[]) {
+  ws['!cols'] = widths.map(w => ({ wch: w }));
 }
+
+function exportXLSX(rows: ApontamentoCS[], periodo: string): void {
+  const wb = XLSX.utils.book_new();
+
+  // ── Aba 1: Apontamentos detalhados ──────────────────────────────────────
+  const detalhes = rows.map(r => ({
+    'OS': r.nr_os,
+    'Técnico': r.tecnico_nome,
+    'E-mail Técnico': r.tecnico_email,
+    'Tipo de Serviço': r.servico_descricao,
+    'Data': formatDateBR(r.inicio),
+    'Hora Início': formatHHMM(r.inicio),
+    'Hora Fim': r.fim ? formatHHMM(r.fim) : '',
+    'Produtivo (min)': r.tempo_produtivo_minutos ?? '',
+    'Produtivo (h)': r.tempo_produtivo_minutos != null ? +(r.tempo_produtivo_minutos / 60).toFixed(2) : '',
+    'Pausa (min)': r.tempo_pausa_minutos ?? 0,
+    'Nº Pausas': r.pausas?.length ?? 0,
+    'Status': r.status === 'finalizado' ? 'Finalizado' : r.status === 'em_andamento' ? 'Em andamento' : 'Pausado',
+    'Obs. Inicial': r.observacao_inicial ?? '',
+    'Obs. Final': r.observacao_final ?? '',
+  }));
+  const wsDetalhe = XLSX.utils.json_to_sheet(detalhes);
+  setColWidths(wsDetalhe, [12, 22, 28, 24, 12, 12, 12, 16, 14, 12, 10, 14, 30, 30]);
+  XLSX.utils.book_append_sheet(wb, wsDetalhe, 'Apontamentos');
+
+  // ── Aba 2: Resumo por Técnico ────────────────────────────────────────────
+  const byTec = new Map<string, { nome: string; email: string; minProd: number; minPausa: number; qtd: number; osSet: Set<string> }>();
+  for (const r of rows) {
+    if (!byTec.has(r.tecnico_id)) {
+      byTec.set(r.tecnico_id, { nome: r.tecnico_nome, email: r.tecnico_email, minProd: 0, minPausa: 0, qtd: 0, osSet: new Set() });
+    }
+    const t = byTec.get(r.tecnico_id)!;
+    t.minProd += r.tempo_produtivo_minutos ?? 0;
+    t.minPausa += r.tempo_pausa_minutos ?? 0;
+    t.qtd += 1;
+    t.osSet.add(r.nr_os);
+  }
+  const resumoTec = Array.from(byTec.values()).map(t => ({
+    'Técnico': t.nome,
+    'E-mail': t.email,
+    'Apontamentos': t.qtd,
+    'OS Distintas': t.osSet.size,
+    'Total Produtivo (min)': t.minProd,
+    'Total Produtivo (h)': +(t.minProd / 60).toFixed(2),
+    'Total Pausa (min)': t.minPausa,
+    'Utilização (%)': t.minProd > 0 ? +((t.minProd / (t.minProd + t.minPausa)) * 100).toFixed(1) : 0,
+  }));
+  const wsTec = XLSX.utils.json_to_sheet(resumoTec);
+  setColWidths(wsTec, [22, 28, 14, 14, 22, 20, 18, 14]);
+  XLSX.utils.book_append_sheet(wb, wsTec, 'Por Técnico');
+
+  // ── Aba 3: Resumo por OS ─────────────────────────────────────────────────
+  const byOs = new Map<string, { tecnicos: Set<string>; minProd: number; qtd: number; servicos: Set<string> }>();
+  for (const r of rows) {
+    if (!byOs.has(r.nr_os)) {
+      byOs.set(r.nr_os, { tecnicos: new Set(), minProd: 0, qtd: 0, servicos: new Set() });
+    }
+    const o = byOs.get(r.nr_os)!;
+    o.tecnicos.add(r.tecnico_nome);
+    o.minProd += r.tempo_produtivo_minutos ?? 0;
+    o.qtd += 1;
+    o.servicos.add(r.servico_descricao);
+  }
+  const resumoOs = Array.from(byOs.entries())
+    .sort((a, b) => b[1].minProd - a[1].minProd)
+    .map(([nr_os, o]) => ({
+      'OS': nr_os,
+      'Técnicos': Array.from(o.tecnicos).join(', '),
+      'Serviços': Array.from(o.servicos).join(', '),
+      'Apontamentos': o.qtd,
+      'Total Produtivo (min)': o.minProd,
+      'Total Produtivo (h)': +(o.minProd / 60).toFixed(2),
+    }));
+  const wsOs = XLSX.utils.json_to_sheet(resumoOs);
+  setColWidths(wsOs, [12, 35, 35, 14, 22, 20]);
+  XLSX.utils.book_append_sheet(wb, wsOs, 'Por OS');
+
+  // ── Aba 4: Pausas detalhadas ─────────────────────────────────────────────
+  const pausaRows: object[] = [];
+  for (const r of rows) {
+    if (!r.pausas?.length) continue;
+    for (const p of r.pausas) {
+      pausaRows.push({
+        'OS': r.nr_os,
+        'Técnico': r.tecnico_nome,
+        'Data': formatDateBR(r.inicio),
+        'Início Pausa': formatHHMM(p.inicio_pausa),
+        'Fim Pausa': p.fim_pausa ? formatHHMM(p.fim_pausa) : 'Em aberto',
+        'Duração (min)': p.fim_pausa
+          ? Math.round((new Date(p.fim_pausa).getTime() - new Date(p.inicio_pausa).getTime()) / 60000)
+          : '',
+        'Motivo': p.motivo ?? '',
+      });
+    }
+  }
+  if (pausaRows.length > 0) {
+    const wsPausa = XLSX.utils.json_to_sheet(pausaRows);
+    setColWidths(wsPausa, [12, 22, 12, 14, 14, 16, 20]);
+    XLSX.utils.book_append_sheet(wb, wsPausa, 'Pausas');
+  }
+
+  const nomeArquivo = `apontamentos_${periodo.replace(/\//g, '-')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+  XLSX.writeFile(wb, nomeArquivo);
+}
+
+// ── Component ─────────────────────────────────────────────────────────────
 
 const RelatoriosHoras: React.FC<Props> = ({ isManager, userId }) => {
   const { servicos } = useHoras();
@@ -145,7 +226,9 @@ const RelatoriosHoras: React.FC<Props> = ({ isManager, userId }) => {
     background: 'white', color: '#374151',
   };
 
-  const selectStyle: React.CSSProperties = { ...inputStyle };
+  const periodoLabel = filtro.data_inicio && filtro.data_fim
+    ? `${formatDateBR(filtro.data_inicio + 'T12:00:00')} a ${formatDateBR(filtro.data_fim + 'T12:00:00')}`
+    : 'periodo';
 
   return (
     <div>
@@ -191,7 +274,7 @@ const RelatoriosHoras: React.FC<Props> = ({ isManager, userId }) => {
           {isManager && (
             <div>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#6B7280', marginBottom: '4px' }}>Técnico</label>
-              <select value={filtro.tecnico_id ?? ''} onChange={e => setFiltro(f => ({ ...f, tecnico_id: e.target.value || undefined }))} style={selectStyle}>
+              <select value={filtro.tecnico_id ?? ''} onChange={e => setFiltro(f => ({ ...f, tecnico_id: e.target.value || undefined }))} style={inputStyle}>
                 <option value="">Todos</option>
                 {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
               </select>
@@ -199,7 +282,7 @@ const RelatoriosHoras: React.FC<Props> = ({ isManager, userId }) => {
           )}
           <div>
             <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#6B7280', marginBottom: '4px' }}>Tipo de serviço</label>
-            <select value={filtro.servico_codigo ?? ''} onChange={e => setFiltro(f => ({ ...f, servico_codigo: e.target.value || undefined }))} style={selectStyle}>
+            <select value={filtro.servico_codigo ?? ''} onChange={e => setFiltro(f => ({ ...f, servico_codigo: e.target.value || undefined }))} style={inputStyle}>
               <option value="">Todos</option>
               {servicos.map(s => <option key={s.codigo} value={s.codigo}>{s.descricao}</option>)}
             </select>
@@ -210,7 +293,7 @@ const RelatoriosHoras: React.FC<Props> = ({ isManager, userId }) => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button
             onClick={search}
             disabled={loading}
@@ -225,9 +308,10 @@ const RelatoriosHoras: React.FC<Props> = ({ isManager, userId }) => {
             {loading ? <RefreshCw size={15} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Search size={15} />}
             {loading ? 'Buscando...' : 'Buscar'}
           </button>
+
           {apontamentos.length > 0 && (
             <button
-              onClick={() => exportCSV(apontamentos)}
+              onClick={() => exportXLSX(apontamentos, periodoLabel)}
               style={{
                 display: 'flex', alignItems: 'center', gap: '8px',
                 padding: '10px 18px', borderRadius: '10px',
@@ -235,11 +319,31 @@ const RelatoriosHoras: React.FC<Props> = ({ isManager, userId }) => {
                 color: '#16A34A', fontWeight: 700, fontSize: '13px', cursor: 'pointer',
               }}
             >
-              <Download size={15} /> Exportar CSV
+              <Download size={15} /> Exportar Excel (.xlsx)
             </button>
           )}
         </div>
       </div>
+
+      {/* Export info */}
+      {apontamentos.length > 0 && (
+        <div style={{
+          background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: '10px',
+          padding: '12px 16px', marginBottom: '16px',
+          display: 'flex', alignItems: 'flex-start', gap: '10px',
+        }}>
+          <Table2 size={18} color="#16A34A" style={{ flexShrink: 0, marginTop: '1px' }} />
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#15803D' }}>Planilha Excel com 4 abas</div>
+            <div style={{ fontSize: '12px', color: '#166534', marginTop: '2px' }}>
+              <strong>Apontamentos</strong> (todos os registros) ·{' '}
+              <strong>Por Técnico</strong> (totais e utilização) ·{' '}
+              <strong>Por OS</strong> (tempo por ordem de serviço) ·{' '}
+              {apontamentos.some(a => a.pausas?.length) && <><strong>Pausas</strong> (detalhamento de cada pausa)</>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '10px', padding: '14px', marginBottom: '16px', display: 'flex', gap: '8px', alignItems: 'center', fontSize: '13px', color: '#DC2626' }}>
@@ -276,7 +380,8 @@ const RelatoriosHoras: React.FC<Props> = ({ isManager, userId }) => {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <thead>
                     <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E5E7EB' }}>
-                      {(isManager ? ['Data', 'Técnico', 'OS', 'Serviço', 'Início', 'Fim', 'Produtivo', 'Pausas', 'Status']
+                      {(isManager
+                        ? ['Data', 'Técnico', 'OS', 'Serviço', 'Início', 'Fim', 'Produtivo', 'Pausas', 'Status']
                         : ['Data', 'OS', 'Serviço', 'Início', 'Fim', 'Produtivo', 'Pausas', 'Status']
                       ).map(h => (
                         <th key={h} style={{ padding: '11px 12px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
@@ -291,14 +396,17 @@ const RelatoriosHoras: React.FC<Props> = ({ isManager, userId }) => {
                         pausado: '#D97706',
                       };
                       return (
-                        <tr key={apt.id} style={{ borderBottom: i < apontamentos.length - 1 ? '1px solid #F9FAFB' : 'none' }}>
+                        <tr key={apt.id} style={{ borderBottom: i < apontamentos.length - 1 ? '1px solid #F9FAFB' : 'none' }}
+                          onMouseOver={e => (e.currentTarget.style.background = '#FAFBFF')}
+                          onMouseOut={e => (e.currentTarget.style.background = 'white')}
+                        >
                           <td style={{ padding: '11px 12px', color: '#374151', whiteSpace: 'nowrap' }}>{formatDateBR(apt.inicio)}</td>
                           {isManager && <td style={{ padding: '11px 12px', fontWeight: 600, color: '#111827' }}>{apt.tecnico_nome}</td>}
-                          <td style={{ padding: '11px 12px', color: '#374151' }}>{apt.nr_os}</td>
+                          <td style={{ padding: '11px 12px', color: '#374151', fontWeight: 600 }}>{apt.nr_os}</td>
                           <td style={{ padding: '11px 12px', color: '#6B7280' }}>{apt.servico_descricao}</td>
                           <td style={{ padding: '11px 12px', color: '#374151', whiteSpace: 'nowrap' }}>{formatHHMM(apt.inicio)}</td>
                           <td style={{ padding: '11px 12px', color: '#374151', whiteSpace: 'nowrap' }}>{apt.fim ? formatHHMM(apt.fim) : '—'}</td>
-                          <td style={{ padding: '11px 12px', color: '#374151', fontWeight: 600 }}>
+                          <td style={{ padding: '11px 12px', color: '#005198', fontWeight: 700 }}>
                             {apt.tempo_produtivo_minutos != null ? minToStr(apt.tempo_produtivo_minutos) : '—'}
                           </td>
                           <td style={{ padding: '11px 12px', color: '#6B7280' }}>
@@ -315,8 +423,14 @@ const RelatoriosHoras: React.FC<Props> = ({ isManager, userId }) => {
                   </tbody>
                 </table>
               </div>
-              <div style={{ padding: '12px 16px', borderTop: '1px solid #F3F4F6', fontSize: '12px', color: '#9CA3AF', textAlign: 'right' }}>
-                {apontamentos.length} registro{apontamentos.length !== 1 ? 's' : ''}
+              <div style={{ padding: '12px 16px', borderTop: '1px solid #F3F4F6', fontSize: '12px', color: '#9CA3AF', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>{apontamentos.length} registro{apontamentos.length !== 1 ? 's' : ''} · {periodoLabel}</span>
+                <button
+                  onClick={() => exportXLSX(apontamentos, periodoLabel)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 12px', borderRadius: '7px', border: '1px solid #D1D5DB', background: 'white', fontSize: '12px', color: '#374151', cursor: 'pointer' }}
+                >
+                  <Download size={13} /> Exportar Excel
+                </button>
               </div>
             </div>
           )}
