@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Search, AlertCircle, Clock, Wrench, CheckCircle } from 'lucide-react';
 import { useHoras, formatElapsed } from '../../contexts/HorasContext';
-import { buscarOS, pesquisarOS, buscarFamiliaByItem } from '../../services/horasService';
+import { buscarOS, pesquisarOS, buscarEquipamentoInfo } from '../../services/horasService';
+import type { EquipamentoInfo } from '../../services/horasService';
 import type { OSAdministrativaCS } from '../../types';
 
 interface Props {
@@ -13,7 +14,7 @@ const IniciarApontamento: React.FC<Props> = ({ user }) => {
 
   const [nrOs, setNrOs] = useState('');
   const [servicoCodigo, setServicoCodigo] = useState('');
-  const [familiaAuto, setFamiliaAuto] = useState<string | null>(null);
+  const [equipInfo, setEquipInfo] = useState<EquipamentoInfo | null>(null);
   const [observacao, setObservacao] = useState('');
   const [osInfo, setOsInfo] = useState<OSAdministrativaCS | null>(null);
   const [osLoading, setOsLoading] = useState(false);
@@ -27,10 +28,10 @@ const IniciarApontamento: React.FC<Props> = ({ user }) => {
   const searchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suggRef = useRef<HTMLDivElement>(null);
 
-  // Auto-resolve família via item da OS → base de equipamentos
+  // Auto-resolve familia/modelo/clase via item da OS → base de equipamentos
   useEffect(() => {
-    if (!osInfo?.item) { setFamiliaAuto(null); return; }
-    buscarFamiliaByItem(osInfo.item).then(setFamiliaAuto);
+    if (!osInfo?.item) { setEquipInfo(null); return; }
+    buscarEquipamentoInfo(osInfo.item).then(setEquipInfo);
   }, [osInfo]);
 
   useEffect(() => {
@@ -80,7 +81,9 @@ const IniciarApontamento: React.FC<Props> = ({ user }) => {
         servico_id: servico.id,
         servico_codigo: servico.codigo,
         servico_descricao: servico.descricao,
-        familia_equipamento: familiaAuto || undefined,
+        familia_equipamento: equipInfo?.familia || undefined,
+        modelo_equipamento: equipInfo?.modelo || undefined,
+        clase_equipamento: equipInfo?.clase || undefined,
         observacao_inicial: observacao || undefined,
         osInfo,
       });
@@ -344,9 +347,23 @@ const IniciarApontamento: React.FC<Props> = ({ user }) => {
               {osInfo.descricao && <div style={{ fontSize: '12px', color: '#374151', marginTop: '4px' }}>{osInfo.descricao}</div>}
               {osInfo.razao_social && <div style={{ fontSize: '11px', color: '#6B7280' }}>{osInfo.razao_social}</div>}
               {osInfo.situacao && <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '2px' }}>Status: {osInfo.situacao}</div>}
-              {familiaAuto && (
-                <div style={{ marginTop: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '12px', background: '#F0FDF4', border: '1px solid #86EFAC' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#15803D' }}>Família: {familiaAuto}</span>
+              {equipInfo && (equipInfo.familia || equipInfo.modelo || equipInfo.clase) && (
+                <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {equipInfo.familia && (
+                    <span style={{ padding: '2px 8px', borderRadius: '12px', background: '#F0FDF4', border: '1px solid #86EFAC', fontSize: '11px', fontWeight: 700, color: '#15803D' }}>
+                      Família: {equipInfo.familia}
+                    </span>
+                  )}
+                  {equipInfo.modelo && (
+                    <span style={{ padding: '2px 8px', borderRadius: '12px', background: '#EFF6FF', border: '1px solid #BFDBFE', fontSize: '11px', fontWeight: 700, color: '#1E40AF' }}>
+                      Modelo: {equipInfo.modelo}
+                    </span>
+                  )}
+                  {equipInfo.clase && (
+                    <span style={{ padding: '2px 8px', borderRadius: '12px', background: '#FFF7ED', border: '1px solid #FED7AA', fontSize: '11px', fontWeight: 700, color: '#C2410C' }}>
+                      Clase: {equipInfo.clase}
+                    </span>
+                  )}
                 </div>
               )}
             </div>

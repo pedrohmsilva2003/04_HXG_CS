@@ -7,6 +7,7 @@ import type {
   ApontamentoAtivo,
   SSPConfig,
   BRMEficienciaRow,
+  BRMAgrupamento,
 } from '../types';
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -59,13 +60,20 @@ export async function pesquisarOS(termo: string, limit = 10): Promise<OSAdminist
   return (data ?? []) as OSAdministrativaCS[];
 }
 
-export async function buscarFamiliaByItem(item: string): Promise<string | null> {
+export interface EquipamentoInfo {
+  familia: string | null;
+  modelo: string | null;
+  clase: string | null;
+}
+
+export async function buscarEquipamentoInfo(item: string): Promise<EquipamentoInfo> {
   const { data } = await supabase
     .from('base_equipamentos_cs')
-    .select('familia')
+    .select('familia, modelo, clase')
     .eq('referencia', item.trim())
     .maybeSingle();
-  return (data as { familia?: string } | null)?.familia ?? null;
+  const d = data as { familia?: string; modelo?: string; clase?: string } | null;
+  return { familia: d?.familia ?? null, modelo: d?.modelo ?? null, clase: d?.clase ?? null };
 }
 
 // ── Criar Apontamento ─────────────────────────────────────────
@@ -79,6 +87,8 @@ export interface CriarApontamentoInput {
   servico_codigo: string;
   servico_descricao: string;
   familia_equipamento?: string;
+  modelo_equipamento?: string;
+  clase_equipamento?: string;
   observacao_inicial?: string;
 }
 
@@ -95,6 +105,8 @@ export async function criarApontamento(input: CriarApontamentoInput): Promise<Ap
       servico_codigo: input.servico_codigo,
       servico_descricao: input.servico_descricao,
       familia_equipamento: input.familia_equipamento ?? null,
+      modelo_equipamento: input.modelo_equipamento ?? null,
+      clase_equipamento: input.clase_equipamento ?? null,
       observacao_inicial: input.observacao_inicial ?? null,
       inicio: now,
       status: 'em_andamento',
@@ -354,42 +366,45 @@ export async function upsertSSPConfig(familia: string, servico_codigo: string, s
   if (error) throw error;
 }
 
-export async function getBRMEficiencia(dataInicio: string, dataFim: string): Promise<BRMEficienciaRow[]> {
+export async function getBRMEficiencia(dataInicio: string, dataFim: string, agrupamento: BRMAgrupamento = 'familia'): Promise<BRMEficienciaRow[]> {
+  const campoGrupo = agrupamento === 'clase' ? 'clase_equipamento' : 'familia_equipamento';
+
   const { data } = await supabase
     .from('apontamentos_cs')
-    .select('familia_equipamento, servico_codigo, servico_descricao, tempo_produtivo_minutos')
+    .select('familia_equipamento, modelo_equipamento, clase_equipamento, servico_codigo, servico_descricao, tempo_produtivo_minutos')
     .eq('status', 'finalizado')
     .is('deleted_at', null)
-    .not('familia_equipamento', 'is', null)
+    .not(campoGrupo, 'is', null)
     .gte('inicio', toISO(dataInicio))
     .lte('inicio', toISO(dataFim + 'T23:59:59'));
 
-  const rows = (data ?? []) as Pick<ApontamentoCS, 'familia_equipamento' | 'servico_codigo' | 'servico_descricao' | 'tempo_produtivo_minutos'>[];
+  const rows = (data ?? []) as Pick<ApontamentoCS, 'familia_equipamento' | 'modelo_equipamento' | 'clase_equipamento' | 'servico_codigo' | 'servico_descricao' | 'tempo_produtivo_minutos'>[];
   const sspConfig = await getSSPConfig();
   const sspMap = new Map(sspConfig.map(s => [`${s.familia}|${s.servico_codigo}`, s.ssp_horas]));
 
-  const groups = new Map<string, { familia: string; servico_codigo: string; servico_descricao: string; horas: number[] }>();
+  type GroupVal = { grupo: string; familia?: string; clase?: string; servico_codigo: string; servico_descricao: string; horas: number[] };
+  const groups = new Map<string, GroupVal>();
+
   for (const r of rows) {
-    if (!r.familia_equipamento) continue;
-    const key = `${r.familia_equipamento}|${r.servico_codigo}`;
-    if (!groups.has(key)) groups.set(key, { familia: r.familia_equipamento, servico_codigo: r.servico_codigo, servico_descricao: r.servico_descricao, horas: [] });
+    const grupVal = agrupamento === 'clase' ? r.clase_equipamento : r.familia_equipamento;
+    if (!grupVal) continue;
+    const key = `${grupVal}|${r.servico_codigo}`;
+    if (!groups.has(key)) {
+      groups.set(key, { grupo: grupVal, familia: r.familia_equipamento ?? undefined, clase: r.clase_equipamento ?? undefined, servico_codigo: r.servico_codigo, servico_descricao: r.servico_descricao, horas: [] });
+    }
     groups.get(key)!.horas.push((r.tempo_produtivo_minutos ?? 0) / 60);
   }
 
-  const familiaOrder = ['NOVA series', 'High End', 'Manual'];
   const result: BRMEficienciaRow[] = Array.from(groups.values()).map(g => {
     const count = g.horas.length;
     const avg = count > 0 ? g.horas.reduce((a, b) => a + b, 0) / count : 0;
     const max = count > 0 ? Math.max(...g.horas) : 0;
     const min = count > 0 ? Math.min(...g.horas) : 0;
-    const ssp = sspMap.get(`${g.familia}|${g.servico_codigo}`) ?? 0;
-    return { familia: g.familia, servico_codigo: g.servico_codigo, servico_descricao: g.servico_descricao, count, avg_horas: avg, max_horas: max, min_horas: min, ssp_horas: ssp, eficiencia: avg > 0 ? (ssp / avg) * 100 : 0 };
+    const ssp = sspMap.get(`${g.grupo}|${g.servico_codigo}`) ?? 0;
+    return { grupo: g.grupo, familia: g.familia, clase: g.clase, servico_codigo: g.servico_codigo, servico_descricao: g.servico_descricao, count, avg_horas: avg, max_horas: max, min_horas: min, ssp_horas: ssp, eficiencia: avg > 0 ? (ssp / avg) * 100 : 0 };
   });
 
-  return result.sort((a, b) => {
-    const diff = familiaOrder.indexOf(a.familia) - familiaOrder.indexOf(b.familia);
-    return diff !== 0 ? diff : a.servico_codigo.localeCompare(b.servico_codigo);
-  });
+  return result.sort((a, b) => a.grupo.localeCompare(b.grupo) || a.servico_codigo.localeCompare(b.servico_codigo));
 }
 
 export async function getBRMUtilizacao(dataInicio: string, dataFim: string): Promise<{ total_minutos_produtivos: number; qtd_tecnicos: number }> {

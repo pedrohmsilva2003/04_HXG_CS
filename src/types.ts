@@ -139,6 +139,8 @@ export interface ApontamentoAtivo {
   servico_codigo: string;
   servico_descricao: string;
   familia_equipamento?: string;
+  modelo_equipamento?: string;
+  clase_equipamento?: string;
   tecnico_id: string;
   tecnico_nome: string;
   tecnico_email: string;
@@ -159,6 +161,8 @@ export interface ApontamentoCS {
   servico_codigo: string;
   servico_descricao: string;
   familia_equipamento?: string;
+  modelo_equipamento?: string;
+  clase_equipamento?: string;
   inicio: string;
   fim?: string;
   tempo_produtivo_minutos?: number;
@@ -226,8 +230,13 @@ export interface SSPConfig {
   ssp_horas: number;
 }
 
+export type BRMAgrupamento = 'familia' | 'clase';
+
 export interface BRMEficienciaRow {
-  familia: string;
+  grupo: string;           // valor do agrupamento (familia ou clase)
+  familia?: string;
+  modelo?: string;
+  clase?: string;
   servico_codigo: string;
   servico_descricao: string;
   count: number;

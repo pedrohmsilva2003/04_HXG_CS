@@ -6,7 +6,7 @@ import {
   getSSPConfig,
   upsertSSPConfig,
 } from '../../services/horasService';
-import type { BRMEficienciaRow, SSPConfig } from '../../types';
+import type { BRMEficienciaRow, SSPConfig, BRMAgrupamento } from '../../types';
 
 const SERVICOS_LABEL: Record<string, string> = {
   extended_maintenance: 'Ext. Maintenance',
@@ -64,6 +64,8 @@ const RelatoriosBRM: React.FC = () => {
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
 
+  const [agrupamento, setAgrupamento] = useState<BRMAgrupamento>('familia');
+
   const [loading, setLoading] = useState(false);
   const [eficiencia, setEficiencia] = useState<BRMEficienciaRow[]>([]);
   const [utilTotal, setUtilTotal] = useState(0);
@@ -96,7 +98,7 @@ const RelatoriosBRM: React.FC = () => {
     setLoading(true);
     try {
       const [ef, util, ssp] = await Promise.all([
-        getBRMEficiencia(start, end),
+        getBRMEficiencia(start, end, agrupamento),
         getBRMUtilizacao(start, end),
         getSSPConfig(),
       ]);
@@ -110,7 +112,7 @@ const RelatoriosBRM: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [getDateRange, periodoId]);
+  }, [getDateRange, periodoId, agrupamento]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -196,14 +198,26 @@ const RelatoriosBRM: React.FC = () => {
 
       {/* ── SSP EFFICIENCY ── */}
       <div style={{ background: 'white', borderRadius: '14px', padding: '20px', marginBottom: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.07)', border: '1px solid #F1F5F9' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px', gap: '12px', flexWrap: 'wrap' }}>
           <div>
             <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#111827' }}>SSP efficiency (reality vs. service product)</h3>
             <p style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>Eficiência = SSP ÷ Média real × 100. Verde ≥80%, laranja ≥60%, vermelho &lt;60%.</p>
           </div>
-          <button onClick={() => setShowSSPEditor(!showSSPEditor)} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', borderRadius: '7px', border: '1.5px solid #E5E7EB', background: 'white', fontSize: '12px', cursor: 'pointer', color: '#374151', flexShrink: 0 }}>
-            <Settings size={13} /> SSP {showSSPEditor ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          </button>
+          <div style={{ display: 'flex', gap: '8px', flexShrink: 0, alignItems: 'center' }}>
+            <div style={{ display: 'flex', background: '#F1F5F9', borderRadius: '8px', padding: '3px' }}>
+              {([['familia', 'Família (Col C)'], ['clase', 'Clase (Col E)']] as [BRMAgrupamento, string][]).map(([id, label]) => (
+                <button key={id} onClick={() => setAgrupamento(id)} style={{
+                  padding: '5px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', border: 'none',
+                  background: agrupamento === id ? 'white' : 'transparent',
+                  color: agrupamento === id ? '#005198' : '#64748B',
+                  boxShadow: agrupamento === id ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                }}>{label}</button>
+              ))}
+            </div>
+            <button onClick={() => setShowSSPEditor(!showSSPEditor)} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', borderRadius: '7px', border: '1.5px solid #E5E7EB', background: 'white', fontSize: '12px', cursor: 'pointer', color: '#374151' }}>
+              <Settings size={13} /> SSP {showSSPEditor ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            </button>
+          </div>
         </div>
 
         {/* SSP Config Editor */}
@@ -270,7 +284,11 @@ const RelatoriosBRM: React.FC = () => {
               <tbody>
                 {eficiencia.map((row, i) => (
                   <tr key={i} style={{ borderBottom: '1px solid #F3F4F6' }}>
-                    <td style={{ padding: '11px 12px', fontWeight: 700, color: '#111827', whiteSpace: 'nowrap' }}>{row.familia}</td>
+                    <td style={{ padding: '11px 12px', fontWeight: 700, color: '#111827', whiteSpace: 'nowrap' }}>
+                      {row.grupo}
+                      {agrupamento === 'clase' && row.familia && <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 400 }}>{row.familia}</div>}
+                      {agrupamento === 'familia' && row.clase && <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 400 }}>{row.clase}</div>}
+                    </td>
                     <td style={{ padding: '11px 12px', color: '#374151', whiteSpace: 'nowrap' }}>{SERVICOS_LABEL[row.servico_codigo] ?? row.servico_descricao}</td>
                     <td style={{ padding: '11px 12px', textAlign: 'center', color: '#374151' }}>{row.count}</td>
                     <td style={{ padding: '11px 12px', textAlign: 'center', fontWeight: 800, color: '#111827' }}>{row.avg_horas.toFixed(1)}</td>
