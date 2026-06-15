@@ -110,3 +110,105 @@ export interface ToastMessage {
   type: ToastType;
   message: string;
 }
+
+// ============================================================
+// CONTROLE DE HORAS TÉCNICAS
+// ============================================================
+
+export interface ServicoCS {
+  id: string;
+  codigo: string;
+  descricao: string;
+  tempo_estimado_hrs: number;
+  ativo: boolean;
+}
+
+export type ApontamentoStatus = 'em_andamento' | 'pausado' | 'finalizado';
+
+export interface PausaAtiva {
+  id?: string;
+  inicio_pausa: string;
+  fim_pausa?: string;
+  motivo?: string;
+}
+
+export interface ApontamentoAtivo {
+  id: string;
+  nr_os: string;
+  servico_id?: string;
+  servico_codigo: string;
+  servico_descricao: string;
+  tecnico_id: string;
+  tecnico_nome: string;
+  tecnico_email: string;
+  inicio: string;
+  pausas: PausaAtiva[];
+  status: 'em_andamento' | 'pausado';
+  observacao_inicial?: string;
+  osInfo?: OSAdministrativaCS | null;
+}
+
+export interface ApontamentoCS {
+  id: string;
+  nr_os: string;
+  tecnico_id: string;
+  tecnico_nome: string;
+  tecnico_email: string;
+  servico_id?: string;
+  servico_codigo: string;
+  servico_descricao: string;
+  inicio: string;
+  fim?: string;
+  tempo_produtivo_minutos?: number;
+  tempo_pausa_minutos?: number;
+  observacao_inicial?: string;
+  observacao_final?: string;
+  status: ApontamentoStatus;
+  deleted_at?: string;
+  created_at: string;
+  updated_at: string;
+  pausas?: PausaApontamentoCS[];
+}
+
+export interface PausaApontamentoCS {
+  id: string;
+  apontamento_id: string;
+  inicio_pausa: string;
+  fim_pausa?: string;
+  motivo?: string;
+}
+
+export interface OSAdministrativaCS {
+  id: string;
+  nr_os: string;
+  emp?: string;
+  item?: string;
+  descricao?: string;
+  nr_serie?: string;
+  cod_cliente?: string;
+  razao_social?: string;
+  tipo?: number;
+  tipo_os?: string;
+  dt_os?: string;
+  encerramento?: string;
+  valor?: number;
+  situacao?: string;
+  estagio?: string;
+}
+
+export interface MetricasDia {
+  date: string;
+  minutos_produtivos: number;
+  minutos_pausa: number;
+  qtd_apontamentos: number;
+}
+
+export interface MetricasTecnico {
+  tecnico_id: string;
+  tecnico_nome: string;
+  minutos_produtivos_total: number;
+  qtd_os_atendidas: number;
+  meta_minutos: number;
+  por_dia: MetricasDia[];
+  por_servico: { servico: string; minutos: number; qtd: number }[];
+}

@@ -7,6 +7,10 @@ import { autoBackupService } from './services/autoBackupService';
 import { userService } from './services/userService';
 import { getSupabase } from './services/cloudSync';
 import LoginPage from './components/LoginPage';
+import { HorasProvider } from './contexts/HorasContext';
+import FloatingTimer from './components/horas/FloatingTimer';
+import AlertSystem from './components/horas/AlertSystem';
+import HorasPage from './pages/HorasPage';
 
 const CURRENT_USER_KEY = 'app_current_user';
 
@@ -187,23 +191,20 @@ const App: React.FC = () => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
-      <PortalHeader
-        user={currentUser}
-        onLogout={handleLogout}
-        onShowProfile={() => {}}
-      />
-      <main style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 16px', width: '100%', flex: 1 }}>
-        <section style={{ background: 'white', borderRadius: '20px', boxShadow: '0 12px 30px rgba(0, 0, 0, 0.08)', padding: '40px', minHeight: '320px' }}>
-          <h1 style={{ fontSize: '32px', fontWeight: 700, color: '#111827', marginBottom: '16px' }}>
-            Centro de Serviço
-          </h1>
-          <p style={{ fontSize: '16px', lineHeight: 1.75, color: '#4B5563' }}>
-            Em desenvolvimento
-          </p>
-        </section>
-      </main>
-    </div>
+    <HorasProvider user={{ id: currentUser.id, name: currentUser.name, email: currentUser.email }}>
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
+        <PortalHeader
+          user={currentUser}
+          onLogout={handleLogout}
+          onShowProfile={() => {}}
+        />
+        <main style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 16px', width: '100%', flex: 1 }}>
+          <HorasPage user={currentUser} />
+        </main>
+        <FloatingTimer />
+        <AlertSystem />
+      </div>
+    </HorasProvider>
   );
 };
 
