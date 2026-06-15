@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual — Controle de Horas Técnicas</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: #f8fafc; color: #0f172a; height: 100vh; display: flex; overflow: hidden; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 224px; flex-shrink: 0; background: white; border-right: 1px solid #E5E7EB;
+    display: flex; flex-direction: column; overflow-y: auto;
+  }
+  .sidebar-logo { padding: 20px 18px 16px; border-bottom: 1px solid #F3F4F6; }
+  .sidebar-logo h3 { font-size: 13px; font-weight: 800; color: #005198; }
+  .sidebar-logo p { font-size: 10px; color: #9CA3AF; margin-top: 2px; }
+  .sidebar-section { padding: 14px 18px 6px; font-size: 10px; font-weight: 800; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.1em; }
+  .sidebar-link {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 18px; font-size: 12px; color: #4B5563;
+    cursor: pointer; transition: all 0.15s; border-left: 3px solid transparent;
+  }
+  .sidebar-link:hover { background: #F8FAFF; color: #005198; }
+  .sidebar-link.active { background: #EFF6FF; color: #005198; font-weight: 700; border-left-color: #005198; }
+  .sidebar-link .icon { width: 18px; text-align: center; font-size: 13px; }
+
+  /* ── Content ── */
+  .content { flex: 1; overflow-y: auto; padding: 36px 44px; }
+  .section { display: none; max-width: 780px; }
+  .section.active { display: block; }
+
+  h1 { font-size: 28px; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
+  h2 { font-size: 17px; font-weight: 700; color: #111827; margin: 28px 0 10px; padding-bottom: 8px; border-bottom: 1px solid #F3F4F6; }
+  h3 { font-size: 14px; font-weight: 700; color: #374151; margin: 18px 0 7px; }
+  p { font-size: 13px; color: #4B5563; line-height: 1.75; margin-bottom: 10px; }
+  strong { color: #111827; }
+  code { background: #F1F5F9; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #0369A1; font-family: monospace; }
+
+  .lead { font-size: 14px; color: #64748B; line-height: 1.7; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #F3F4F6; }
+
+  /* Steps */
+  .steps { display: flex; flex-direction: column; gap: 0; margin: 16px 0 24px; }
+  .step-item { display: flex; gap: 16px; position: relative; }
+  .step-item:not(:last-child)::before { content: ''; position: absolute; left: 17px; top: 36px; width: 2px; bottom: 0; background: #E5E7EB; }
+  .step-num { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #005198, #01adff); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: white; flex-shrink: 0; position: relative; z-index: 1; }
+  .step-num.green { background: linear-gradient(135deg, #15803d, #16a34a); }
+  .step-content { padding-bottom: 20px; flex: 1; }
+  .step-content h4 { font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 4px; padding-top: 6px; }
+  .step-content p { font-size: 12px; color: #6B7280; line-height: 1.6; margin-bottom: 4px; }
+
+  /* Info boxes */
+  .info-box { border-radius: 10px; padding: 13px 16px; margin: 14px 0; font-size: 12px; line-height: 1.65; }
+  .info-tip  { background: #EFF6FF; border: 1px solid #BFDBFE; color: #1E40AF; }
+  .info-warn { background: #FFFBEB; border: 1px solid #FCD34D; color: #92400E; }
+  .info-green { background: #F0FDF4; border: 1px solid #86EFAC; color: #15803D; }
+
+  /* Cards */
+  .card-grid { display: grid; gap: 12px; margin: 14px 0; }
+  .card-grid.cols2 { grid-template-columns: 1fr 1fr; }
+  .card-grid.cols3 { grid-template-columns: 1fr 1fr 1fr; }
+  .card { background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 16px; }
+  .card-icon { font-size: 22px; margin-bottom: 8px; }
+  .card h4 { font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 4px; }
+  .card p { font-size: 12px; color: #6B7280; line-height: 1.5; margin: 0; }
+
+  /* Table */
+  .doc-table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font-size: 12px; border-radius: 10px; overflow: hidden; border: 1px solid #E5E7EB; }
+  .doc-table th { padding: 10px 14px; text-align: left; font-size: 10px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; background: #F8FAFC; border-bottom: 1px solid #E5E7EB; }
+  .doc-table td { padding: 10px 14px; border-bottom: 1px solid #F3F4F6; color: #374151; vertical-align: top; }
+  .doc-table tr:last-child td { border-bottom: none; }
+
+  /* Badge */
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+
+  /* Alert demos */
+  .alert-demo { border-radius: 10px; padding: 13px 15px; margin: 10px 0; display: flex; gap: 12px; align-items: flex-start; font-size: 12px; }
+  .alert-demo .a-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+  .alert-demo .a-title { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+  .alert-demo .a-sub { font-size: 10px; margin-top: 4px; }
+
+  /* Sheet tabs */
+  .sheet-tabs { display: flex; gap: 6px; margin: 14px 0 0; flex-wrap: wrap; }
+  .sheet-tab { padding: 7px 15px; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1.5px solid #E5E7EB; background: white; color: #374151; transition: all 0.15s; }
+  .sheet-tab.active { border-color: #005198; background: #005198; color: white; }
+  .sheet-content { background: white; border: 1px solid #E5E7EB; border-radius: 0 10px 10px 10px; padding: 16px 18px; margin-bottom: 18px; display: none; }
+  .sheet-content.active { display: block; }
+  .col-row { display: flex; align-items: baseline; gap: 10px; font-size: 12px; padding: 6px 0; border-bottom: 1px solid #F8FAFC; }
+  .col-row:last-child { border-bottom: none; }
+  .col-name { font-weight: 700; color: #111827; min-width: 170px; flex-shrink: 0; }
+  .col-desc { color: #6B7280; }
+
+  /* FAQ */
+  .faq-item { border: 1px solid #E5E7EB; border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
+  .faq-q { padding: 13px 16px; font-size: 13px; font-weight: 700; color: #111827; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: white; user-select: none; }
+  .faq-q:hover { background: #F8FAFF; }
+  .faq-a { font-size: 12px; color: #4B5563; line-height: 1.7; background: #FAFBFF; max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.2s; padding: 0 16px; }
+  .faq-a.open { max-height: 300px; padding: 12px 16px; }
+  .chevron { font-size: 11px; color: #9CA3AF; transition: transform 0.25s; display: inline-block; }
+  .chevron.open { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <h3>📋 Manual de Uso</h3>
+    <p>Controle de Horas Técnicas · CS</p>
+  </div>
+
+  <div class="sidebar-section">Introdução</div>
+  <div class="sidebar-link active" onclick="show('intro', this)"><span class="icon">🏠</span> Visão geral</div>
+  <div class="sidebar-link" onclick="show('conceitos', this)"><span class="icon">📖</span> Conceitos básicos</div>
+
+  <div class="sidebar-section">Guia do Técnico</div>
+  <div class="sidebar-link" onclick="show('iniciar', this)"><span class="icon">▶</span> Iniciar apontamento</div>
+  <div class="sidebar-link" onclick="show('pausar', this)"><span class="icon">⏸</span> Pausar e retomar</div>
+  <div class="sidebar-link" onclick="show('finalizar', this)"><span class="icon">✅</span> Finalizar</div>
+  <div class="sidebar-link" onclick="show('painel', this)"><span class="icon">📊</span> Meu painel</div>
+
+  <div class="sidebar-section">Guia do Gestor</div>
+  <div class="sidebar-link" onclick="show('gerencial', this)"><span class="icon">👥</span> Visão da equipe</div>
+  <div class="sidebar-link" onclick="show('relatorios', this)"><span class="icon">📥</span> Relatórios e export</div>
+
+  <div class="sidebar-section">Sistema</div>
+  <div class="sidebar-link" onclick="show('alertas', this)"><span class="icon">🔔</span> Alertas</div>
+  <div class="sidebar-link" onclick="show('faq', this)"><span class="icon">❓</span> Perguntas frequentes</div>
+</div>
+
+<!-- Content -->
+<div class="content">
+
+<!-- ── Intro ── -->
+<div class="section active" id="s-intro">
+  <h1>Controle de Horas Técnicas</h1>
+  <div class="lead">Este módulo permite que os técnicos do Centro de Serviço registrem suas atividades em tempo real, vinculando cada hora trabalhada a uma Ordem de Serviço. O gestor acompanha a equipe ao vivo e exporta relatórios completos para análise.</div>
+
+  <div class="card-grid cols3">
+    <div class="card"><div class="card-icon">⏱</div><h4>Técnico</h4><p>Inicia, pausa e finaliza atividades com um clique. Timer roda mesmo ao navegar entre páginas.</p></div>
+    <div class="card"><div class="card-icon">👀</div><h4>Gestor</h4><p>Vê todos os técnicos em tempo real — ativo, pausado ou ocioso, e em qual OS.</p></div>
+    <div class="card"><div class="card-icon">📊</div><h4>Análise</h4><p>Relatórios filtráveis e export Excel com 4 abas para cruzamentos externos.</p></div>
+  </div>
+
+  <h2>Tipos de serviço</h2>
+  <table class="doc-table">
+    <thead><tr><th>Código</th><th>Descrição</th><th>Tempo estimado</th></tr></thead>
+    <tbody>
+      <tr><td><code>inspection</code></td><td>Inspection</td><td>~2 horas</td></tr>
+      <tr><td><code>standard_maintenance</code></td><td>Standard Maintenance</td><td>~4 horas</td></tr>
+      <tr><td><code>extended_maintenance</code></td><td>Extended Maintenance</td><td>~8 horas</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Jornada configurada</h2>
+  <div class="card-grid cols2">
+    <div class="card"><h4>Horário de trabalho</h4><p>Manhã: 08:00 → 11:48<br>Tarde: 13:00 → 18:00<br><strong>Total: 44h / semana — meta 8h48/dia</strong></p></div>
+    <div class="card"><h4>Pausas de café</h4><p>Não são fixas, mas tipicamente às <strong>09:00</strong> e <strong>15:00</strong>. O sistema sugere pausar nesses horários.</p></div>
+  </div>
+
+  <h2>Banco de dados (tabelas criadas)</h2>
+  <table class="doc-table">
+    <thead><tr><th>Tabela</th><th>Conteúdo</th></tr></thead>
+    <tbody>
+      <tr><td><code>servicos_cs</code></td><td>Tipos de serviço disponíveis (Inspection, Standard, Extended)</td></tr>
+      <tr><td><code>apontamentos_cs</code></td><td>Registro principal de cada atividade</td></tr>
+      <tr><td><code>apontamento_pausas_cs</code></td><td>Cada pausa individual com início, fim e motivo</td></tr>
+      <tr><td><code>apontamento_eventos_cs</code></td><td>Log completo de auditoria (início, pausa, retomada, finalização)</td></tr>
+      <tr><td><code>base_administrativa_cs</code></td><td>Base de OS importada da planilha (opcional)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── Conceitos ── -->
+<div class="section" id="s-conceitos">
+  <h1>Conceitos básicos</h1>
+  <div class="lead">Entenda os termos e regras antes de começar a usar o módulo.</div>
+
+  <h2>O que é um apontamento?</h2>
+  <p>Um <strong>apontamento</strong> é o registro de uma atividade técnica vinculada a uma OS. Ele tem início, pode ter pausas e deve ser finalizado. Cada apontamento gera um registro permanente com auditoria completa.</p>
+
+  <h2>Estados de um apontamento</h2>
+  <table class="doc-table">
+    <thead><tr><th>Estado</th><th>Significado</th><th>Timer</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge" style="background:#DCFCE7;color:#15803D;">● Em andamento</span></td><td>Técnico trabalhando na OS</td><td>Contando ⏱</td></tr>
+      <tr><td><span class="badge" style="background:#FEF3C7;color:#92400E;">⏸ Pausado</span></td><td>Interrupção temporária registrada</td><td>Congelado</td></tr>
+      <tr><td><span class="badge" style="background:#EFF6FF;color:#1E40AF;">✅ Finalizado</span></td><td>Atividade concluída, tempo calculado</td><td>Encerrado</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Como o tempo é calculado</h2>
+  <div class="info-box info-tip">
+    <strong>Tempo produtivo</strong> = (Hora de fim − Hora de início) − Soma de todas as pausas<br><br>
+    <strong>Exemplo:</strong> Início às 09:00 · Pausa das 10:30 às 10:45 (15 min) · Fim às 12:00<br>
+    Total: 3h · Pausa: 15min → <strong>Produtivo: 2h 45min</strong>
+  </div>
+
+  <h2>Regra de um apontamento por vez</h2>
+  <div class="info-box info-warn">
+    Cada técnico pode ter <strong>apenas um apontamento ativo por vez</strong>. Para iniciar uma nova OS, o apontamento atual deve ser finalizado primeiro.
+  </div>
+
+  <h2>Gravações simultâneas entre técnicos</h2>
+  <p>Os 3 técnicos podem gravar ao mesmo tempo em OS diferentes. Cada apontamento é uma linha independente no banco com UUID próprio — sem nenhum risco de conflito entre eles.</p>
+
+  <h2>Persistência dos dados</h2>
+  <p>O estado do apontamento ativo é salvo simultaneamente no <strong>localStorage</strong> do navegador (para restaurar o timer instantaneamente ao reabrir) e no <strong>Supabase</strong> (armazenamento permanente). Mesmo se o navegador fechar ou o dispositivo reiniciar, o histórico fica preservado.</p>
+</div>
+
+<!-- ── Iniciar ── -->
+<div class="section" id="s-iniciar">
+  <h1>Iniciar um apontamento</h1>
+  <div class="lead">Passo a passo para registrar o início de uma atividade técnica.</div>
+
+  <div class="steps">
+    <div class="step-item">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <h4>Acesse a aba "Novo Apontamento"</h4>
+        <p>Na tela principal do CS, clique na primeira aba. Se já houver um apontamento ativo, ela exibirá o timer em vez do formulário.</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <h4>Informe o número da OS</h4>
+        <p>Digite o número da OS. Ao digitar 2+ caracteres, o sistema busca automaticamente na base administrativa e exibe sugestões.</p>
+        <p>Se a OS for encontrada, aparece um badge azul com os dados do equipamento. Se não for encontrada, o apontamento pode ser registrado assim mesmo.</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <h4>Selecione o tipo de serviço</h4>
+        <p>Escolha entre Inspection (~2h), Standard Maintenance (~4h) ou Extended Maintenance (~8h).</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <h4>Adicione observação inicial (opcional)</h4>
+        <p>Descreva o problema, o que será feito, ou qualquer contexto relevante.</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">5</div>
+      <div class="step-content">
+        <h4>Clique em "Iniciar Apontamento"</h4>
+        <p>O timer começa imediatamente. Um widget aparece no canto inferior direito da tela mostrando o tempo. Você pode navegar para outras páginas — o timer continua.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-box info-green">
+    O apontamento é salvo no Supabase no momento em que você clica em Iniciar. Mesmo que o navegador feche, o histórico fica preservado.
+  </div>
+</div>
+
+<!-- ── Pausar ── -->
+<div class="section" id="s-pausar">
+  <h1>Pausar e retomar</h1>
+  <div class="lead">Use pausas para registrar interrupções — almoço, café, reunião, deslocamento. O tempo de pausa não conta como produtivo.</div>
+
+  <h2>Como pausar</h2>
+  <div class="steps">
+    <div class="step-item">
+      <div class="step-num">1</div>
+      <div class="step-content"><h4>Clique em "Pausar"</h4><p>Disponível na tela de apontamento ativo e no timer flutuante (canto inferior direito).</p></div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">2</div>
+      <div class="step-content"><h4>Informe o motivo (opcional)</h4><p>Selecione um motivo rápido ou escreva um customizado. Ajuda o gestor a entender o padrão da equipe.</p></div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">3</div>
+      <div class="step-content"><h4>Confirme</h4><p>O timer congela. O widget muda para laranja. O tempo de pausa começa a ser contabilizado separadamente.</p></div>
+    </div>
+  </div>
+
+  <h2>Como retomar</h2>
+  <p>Clique em <strong>Retomar</strong> na tela de apontamento ativo ou no timer flutuante. O timer volta a contar e a pausa é encerrada automaticamente com o horário atual.</p>
+
+  <h2>Motivos de pausa disponíveis</h2>
+  <div class="card-grid cols3">
+    <div class="card"><h4>🍽 Almoço</h4><p>Intervalo do almoço</p></div>
+    <div class="card"><h4>☕ Café</h4><p>Pausa rápida para café</p></div>
+    <div class="card"><h4>👥 Reunião</h4><p>Reunião ou treinamento</p></div>
+    <div class="card"><h4>🚗 Deslocamento</h4><p>Deslocamento entre locais</p></div>
+    <div class="card"><h4>📝 Outro</h4><p>Texto livre customizável</p></div>
+  </div>
+
+  <div class="info-box info-tip">
+    <strong>Múltiplas pausas:</strong> Um apontamento pode ter várias pausas. Cada pausa é registrada individualmente com início, fim, duração e motivo. No Excel exportado, a aba "Pausas" lista cada uma separadamente.
+  </div>
+</div>
+
+<!-- ── Finalizar ── -->
+<div class="section" id="s-finalizar">
+  <h1>Finalizar um apontamento</h1>
+  <div class="lead">Finalize sempre ao concluir a atividade para garantir o cálculo correto do tempo produtivo.</div>
+
+  <div class="steps">
+    <div class="step-item">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <h4>Clique em "Finalizar"</h4>
+        <p>Disponível na tela de apontamento ativo e no timer flutuante. Se houver pausa em aberto, ela será encerrada automaticamente no momento da finalização.</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <h4>Adicione observações finais (opcional)</h4>
+        <p>Descreva o que foi realizado, pendências, peças trocadas, ou qualquer informação relevante para o histórico.</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <h4>Confirme</h4>
+        <p>O sistema calcula automaticamente o tempo produtivo e o tempo em pausa. O apontamento aparece no histórico e no painel do gestor.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-box info-warn">
+    <strong>Atenção:</strong> Não deixe apontamentos abertos ao final do dia. O sistema emite alerta 5 minutos antes de 11:48 e 18:00 para lembrar de finalizar.
+  </div>
+
+  <h2>Após finalizar</h2>
+  <p>O widget flutuante desaparece. O formulário de novo apontamento volta a aparecer. O histórico completo fica na aba <strong>Meu Painel</strong>.</p>
+</div>
+
+<!-- ── Painel ── -->
+<div class="section" id="s-painel">
+  <h1>Meu Painel</h1>
+  <div class="lead">Visualize suas métricas pessoais e o histórico de apontamentos do dia.</div>
+
+  <h2>Cards de métricas</h2>
+  <table class="doc-table">
+    <thead><tr><th>Métrica</th><th>Descrição</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Horas produtivas</strong></td><td>Total de tempo ativo no dia (excluindo pausas). Meta: 8h 48min</td></tr>
+      <tr><td><strong>Utilização do dia</strong></td><td>% do produtivo em relação à meta. Verde ≥80%, laranja ≥50%, vermelho &lt;50%</td></tr>
+      <tr><td><strong>OS atendidas</strong></td><td>Número de ordens distintas com apontamento no dia</td></tr>
+      <tr><td><strong>Tempo em pausas</strong></td><td>Soma de todas as pausas do dia</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Lista de apontamentos</h2>
+  <p>Cada apontamento é listado com OS, serviço, horário e duração. Clique em qualquer um para expandir e ver: pausas individuais, observações iniciais e finais, e horários exatos.</p>
+
+  <div class="info-box info-tip">
+    Os dados são carregados do Supabase ao abrir a aba. Clique no ícone de atualizar para ver os registros mais recentes, incluindo o apontamento que acabou de ser finalizado.
+  </div>
+</div>
+
+<!-- ── Gerencial ── -->
+<div class="section" id="s-gerencial">
+  <h1>Visão da Equipe</h1>
+  <div class="lead">Exclusiva para gestores. Mostra o status em tempo real de todos os técnicos.</div>
+
+  <div class="info-box info-green">
+    A aba <strong>Gerencial</strong> só aparece para usuários com perfil de <strong>Gestor</strong>. Técnicos não têm acesso a esta visão.
+  </div>
+
+  <h2>Painel de status em tempo real</h2>
+  <p>Um card por técnico mostrando:</p>
+  <div class="card-grid cols2">
+    <div class="card"><h4>🟢 Gravando</h4><p>Apontamento em andamento. Exibe a OS atual, o serviço e há quanto tempo está nela. Card com borda verde.</p></div>
+    <div class="card"><h4>🟡 Pausado</h4><p>Apontamento pausado. Card com borda laranja. Exibe o motivo da pausa quando informado.</p></div>
+    <div class="card"><h4>⚫ Ocioso</h4><p>Nenhum apontamento aberto. Pode indicar deslocamento, intervalo entre OS ou esquecimento de registrar.</p></div>
+    <div class="card"><h4>📊 Barra de meta</h4><p>Progresso individual de cada técnico em relação à meta de 8h48. Verde ≥80%, laranja ≥50%, vermelho &lt;50%.</p></div>
+  </div>
+
+  <h2>Auto-refresh</h2>
+  <p>A visão gerencial se atualiza automaticamente a <strong>cada 1 minuto</strong>. O horário da última atualização aparece no cabeçalho. Você pode clicar em "Atualizar" a qualquer momento para forçar uma atualização.</p>
+
+  <h2>Gravações simultâneas</h2>
+  <p>Quando 2 ou mais técnicos estão gravando ao mesmo tempo, um banner azul aparece informando a situação. Isso é esperado e correto — cada apontamento é independente no banco.</p>
+
+  <h2>Aba "Todas as Atividades"</h2>
+  <p>Tabela com todos os apontamentos do dia de toda a equipe, incluindo os já finalizados.</p>
+</div>
+
+<!-- ── Relatórios ── -->
+<div class="section" id="s-relatorios">
+  <h1>Relatórios e Export Excel</h1>
+  <div class="lead">Filtre apontamentos por qualquer combinação de período, técnico, OS e serviço. Exporte para .xlsx com um clique.</div>
+
+  <h2>Filtros disponíveis</h2>
+  <table class="doc-table">
+    <thead><tr><th>Filtro</th><th>Opções</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Período</strong></td><td>Hoje · Esta semana · Este mês · Mês anterior · Personalizado</td></tr>
+      <tr><td><strong>Técnico</strong></td><td>Todos ou seleção individual <em>(somente gestores)</em></td></tr>
+      <tr><td><strong>Tipo de serviço</strong></td><td>Todos · Inspection · Standard · Extended</td></tr>
+      <tr><td><strong>Nº OS</strong></td><td>Busca parcial — digitar parte do número já filtra</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Arquivo Excel exportado (.xlsx) — 4 abas</h2>
+
+  <div class="sheet-tabs">
+    <div class="sheet-tab active" onclick="showSheet(0, this)">① Apontamentos</div>
+    <div class="sheet-tab" onclick="showSheet(1, this)">② Por Técnico</div>
+    <div class="sheet-tab" onclick="showSheet(2, this)">③ Por OS</div>
+    <div class="sheet-tab" onclick="showSheet(3, this)">④ Pausas</div>
+  </div>
+
+  <div class="sheet-content active" id="sheet0">
+    <p style="font-size:12px;color:#6B7280;margin-bottom:12px;">Todos os apontamentos linha a linha, com dados completos para análise individual.</p>
+    <div class="col-row"><span class="col-name">OS</span><span class="col-desc">Número da ordem de serviço</span></div>
+    <div class="col-row"><span class="col-name">Técnico</span><span class="col-desc">Nome completo</span></div>
+    <div class="col-row"><span class="col-name">E-mail Técnico</span><span class="col-desc">Para cruzamento com outros sistemas</span></div>
+    <div class="col-row"><span class="col-name">Tipo de Serviço</span><span class="col-desc">Inspection / Standard / Extended</span></div>
+    <div class="col-row"><span class="col-name">Data</span><span class="col-desc">Formato DD/MM/AAAA</span></div>
+    <div class="col-row"><span class="col-name">Hora Início / Fim</span><span class="col-desc">Formato HH:MM</span></div>
+    <div class="col-row"><span class="col-name">Produtivo (min)</span><span class="col-desc">Minutos inteiros para somas simples</span></div>
+    <div class="col-row"><span class="col-name">Produtivo (h)</span><span class="col-desc">Decimal — ex: 2.75 — para fórmulas de multiplicação no Excel</span></div>
+    <div class="col-row"><span class="col-name">Pausa (min)</span><span class="col-desc">Total de pausas em minutos</span></div>
+    <div class="col-row"><span class="col-name">Nº Pausas</span><span class="col-desc">Quantidade de pausas realizadas</span></div>
+    <div class="col-row"><span class="col-name">Status</span><span class="col-desc">Finalizado / Em andamento / Pausado</span></div>
+    <div class="col-row"><span class="col-name">Obs. Inicial / Final</span><span class="col-desc">Anotações do técnico</span></div>
+  </div>
+
+  <div class="sheet-content" id="sheet1">
+    <p style="font-size:12px;color:#6B7280;margin-bottom:12px;">Totais consolidados por técnico no período filtrado.</p>
+    <div class="col-row"><span class="col-name">Técnico / E-mail</span><span class="col-desc">Identificação</span></div>
+    <div class="col-row"><span class="col-name">Apontamentos</span><span class="col-desc">Quantidade total no período</span></div>
+    <div class="col-row"><span class="col-name">OS Distintas</span><span class="col-desc">Ordens únicas atendidas</span></div>
+    <div class="col-row"><span class="col-name">Total Produtivo (min)</span><span class="col-desc">Soma de todo o tempo produtivo</span></div>
+    <div class="col-row"><span class="col-name">Total Produtivo (h)</span><span class="col-desc">Decimal para cálculos de custo/hora</span></div>
+    <div class="col-row"><span class="col-name">Total Pausa (min)</span><span class="col-desc">Soma de todo o tempo em pausa</span></div>
+    <div class="col-row"><span class="col-name">Utilização (%)</span><span class="col-desc">Produtivo ÷ (Produtivo + Pausa) × 100</span></div>
+  </div>
+
+  <div class="sheet-content" id="sheet2">
+    <p style="font-size:12px;color:#6B7280;margin-bottom:12px;">Tempo acumulado por OS, ordenado do maior para o menor. Útil para identificar as OS que mais consumiram horas.</p>
+    <div class="col-row"><span class="col-name">OS</span><span class="col-desc">Número da ordem de serviço</span></div>
+    <div class="col-row"><span class="col-name">Técnicos</span><span class="col-desc">Todos que trabalharam na OS (separados por vírgula)</span></div>
+    <div class="col-row"><span class="col-name">Serviços</span><span class="col-desc">Tipos aplicados na OS</span></div>
+    <div class="col-row"><span class="col-name">Apontamentos</span><span class="col-desc">Quantidade de registros para essa OS</span></div>
+    <div class="col-row"><span class="col-name">Total Produtivo (h)</span><span class="col-desc">Acumulado de todos os técnicos na OS</span></div>
+  </div>
+
+  <div class="sheet-content" id="sheet3">
+    <p style="font-size:12px;color:#6B7280;margin-bottom:12px;">Cada pausa individualmente. Esta aba só existe se houver pelo menos uma pausa nos resultados filtrados.</p>
+    <div class="col-row"><span class="col-name">OS / Técnico</span><span class="col-desc">Contexto da pausa</span></div>
+    <div class="col-row"><span class="col-name">Data</span><span class="col-desc">Data em que ocorreu</span></div>
+    <div class="col-row"><span class="col-name">Início / Fim Pausa</span><span class="col-desc">Horários no formato HH:MM</span></div>
+    <div class="col-row"><span class="col-name">Duração (min)</span><span class="col-desc">Minutos de cada pausa individualmente</span></div>
+    <div class="col-row"><span class="col-name">Motivo</span><span class="col-desc">Razão informada pelo técnico</span></div>
+  </div>
+</div>
+
+<!-- ── Alertas ── -->
+<div class="section" id="s-alertas">
+  <h1>Sistema de Alertas</h1>
+  <div class="lead">Notificações automáticas baseadas na jornada de trabalho. Todos podem ser dispensados com um clique e não reaparecem por 1 hora.</div>
+
+  <div class="alert-demo" style="background:#FEF2F2;border:1px solid #FECACA;">
+    <div class="a-icon" style="background:#FEE2E2;">🔔</div>
+    <div>
+      <div class="a-title" style="color:#991B1B;">Sem apontamento ativo</div>
+      <div style="color:#7F1D1D;">Você está há 30 minutos sem registrar atividade durante o horário de trabalho.</div>
+      <div class="a-sub" style="color:#9CA3AF;">GATILHO: 30 min ocioso em horário de trabalho (08h–11h48 ou 13h–18h)</div>
+    </div>
+  </div>
+
+  <div class="alert-demo" style="background:#FFFBEB;border:1px solid #FCD34D;">
+    <div class="a-icon" style="background:#FEF3C7;">⚠️</div>
+    <div>
+      <div class="a-title" style="color:#92400E;">Atividade contínua longa</div>
+      <div style="color:#78350F;">Você está em atividade contínua há 4h sem nenhuma pausa registrada.</div>
+      <div class="a-sub" style="color:#9CA3AF;">GATILHO: 4 horas sem nenhuma pausa</div>
+    </div>
+  </div>
+
+  <div class="alert-demo" style="background:#EFF6FF;border:1px solid #BFDBFE;">
+    <div class="a-icon" style="background:#DBEAFE;">🕐</div>
+    <div>
+      <div class="a-title" style="color:#1E40AF;">Fim do turno em breve</div>
+      <div style="color:#1E3A8A;">Faltam 5 minutos para o fim do turno. Finalize os apontamentos em aberto.</div>
+      <div class="a-sub" style="color:#9CA3AF;">GATILHO: 5 min antes de 11:48 e 18:00 · Auto-fecha em 5 min</div>
+    </div>
+  </div>
+
+  <div class="alert-demo" style="background:#F0FDF4;border:1px solid #86EFAC;">
+    <div class="a-icon" style="background:#DCFCE7;">☕</div>
+    <div>
+      <div class="a-title" style="color:#15803D;">Hora do café</div>
+      <div style="color:#166534;">Sugestão de pausa para café. Não esqueça de pausar o apontamento!</div>
+      <div class="a-sub" style="color:#9CA3AF;">GATILHO: Próximo das 09:00 e 15:00 · Auto-fecha em 10 min · Apenas informativo</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── FAQ ── -->
+<div class="section" id="s-faq">
+  <h1>Perguntas Frequentes</h1>
+  <div class="lead">Respostas para as dúvidas mais comuns.</div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">O que acontece se eu fechar o navegador com um apontamento ativo? <span class="chevron">▾</span></div>
+    <div class="faq-a">O apontamento continua no Supabase. Quando reabrir o app, o timer é restaurado automaticamente com o tempo calculado corretamente a partir do horário de início original. O apontamento estará como "em andamento" e você pode pausar ou finalizar normalmente.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">Dois técnicos podem registrar na mesma OS ao mesmo tempo? <span class="chevron">▾</span></div>
+    <div class="faq-a">Sim. Não há restrição por OS — a regra é um apontamento por técnico. Dois técnicos na mesma OS geram dois registros separados, o que é útil para calcular o esforço total da OS. O relatório "Por OS" consolida as horas de todos os técnicos que atenderam aquela ordem.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">Como importar a base de OS para habilitar a busca automática? <span class="chevron">▾</span></div>
+    <div class="faq-a">Os dados da planilha precisam ser inseridos na tabela base_administrativa_cs do Supabase. Você pode fazer via INSERT no SQL Editor ou importando um CSV. O campo-chave é nr_os (único). Após importado, a busca ao digitar o nº da OS no formulário funcionará automaticamente com sugestões e informações do equipamento.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">O que é o campo "Produtivo (h)" no Excel e por que ele existe? <span class="chevron">▾</span></div>
+    <div class="faq-a">É o tempo produtivo em horas decimais — ex: 2h30min = 2.50, 2h45min = 2.75. Esse formato é necessário para fórmulas de multiplicação (ex: horas × valor/hora) e para somas que o Excel processa corretamente. O campo "Produtivo (min)" em minutos inteiros também está disponível para quem preferir converter manualmente.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">Como corrigir um apontamento finalizado com dados errados? <span class="chevron">▾</span></div>
+    <div class="faq-a">Atualmente não há edição via interface. Para correções pontuais, acesse o Supabase SQL Editor e faça UPDATE diretamente na tabela apontamentos_cs. Todos os campos podem ser editados exceto id e created_at. Um log completo de auditoria está sempre disponível na tabela apontamento_eventos_cs.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">Quem pode ver os relatórios de outros técnicos? <span class="chevron">▾</span></div>
+    <div class="faq-a">Técnicos veem apenas seus próprios apontamentos. Gestores têm acesso a toda a equipe e podem filtrar por qualquer técnico. O campo de filtro "Técnico" só é exibido para usuários com perfil "Gestor".</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">Os dados são excluídos automaticamente? <span class="chevron">▾</span></div>
+    <div class="faq-a">Não. O sistema usa soft delete — um campo deleted_at marca registros como removidos, mas eles permanecem no banco. Nenhum dado de auditoria é apagado fisicamente. O histórico é permanente.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="toggleFaq(this)">O timer é afetado se o computador entrar em modo de espera? <span class="chevron">▾</span></div>
+    <div class="faq-a">Não. O timer é baseado em timestamps (hora de início salva no banco), não em um contador incremental. Ao retomar, o sistema calcula corretamente: agora − início − pausas. Mesmo que o computador fique horas em standby, o cálculo será preciso quando o navegador reabrir.</div>
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<script>
+  function show(id, el) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+    document.getElementById('s-' + id).classList.add('active');
+    el.classList.add('active');
+    document.querySelector('.content').scrollTop = 0;
+  }
+
+  function toggleFaq(el) {
+    const ans = el.nextElementSibling;
+    const chev = el.querySelector('.chevron');
+    ans.classList.toggle('open');
+    chev.classList.toggle('open');
+  }
+
+  function showSheet(idx, el) {
+    document.querySelectorAll('.sheet-content').forEach((s, i) => s.classList.toggle('active', i === idx));
+    document.querySelectorAll('.sheet-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+  }
+</script>
+</body>
+</html>

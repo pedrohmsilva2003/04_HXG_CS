@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Horas Técnicas — Apresentação</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: #0a0f1e; overflow: hidden; height: 100vh; }
+
+  .deck { width: 100%; height: 100vh; position: relative; }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: none; flex-direction: column;
+    animation: fadeIn 0.35s ease;
+  }
+  .slide.active { display: flex; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── Nav bar ── */
+  .nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(10,15,30,0.95); backdrop-filter: blur(8px);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding: 12px 24px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .nav-btn {
+    padding: 8px 22px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.8);
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+  }
+  .nav-btn:hover { background: rgba(1,173,255,0.2); border-color: #01adff; color: white; }
+  .nav-btn:disabled { opacity: 0.25; cursor: default; }
+  .slide-counter { font-size: 12px; color: rgba(255,255,255,0.4); letter-spacing: 0.08em; }
+  .dot-row { display: flex; gap: 6px; align-items: center; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.2); cursor: pointer; transition: all 0.2s; }
+  .dot.active { background: #01adff; transform: scale(1.3); }
+
+  /* ── Layout helpers ── */
+  .slide-inner { flex: 1; display: flex; flex-direction: column; padding: 40px 48px 72px; max-width: 900px; margin: 0 auto; width: 100%; }
+  .tag { display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; margin-bottom: 14px; }
+  .slide-title { font-size: 34px; font-weight: 800; line-height: 1.15; margin-bottom: 8px; }
+  .slide-sub { font-size: 15px; line-height: 1.7; margin-bottom: 28px; }
+
+  /* ── Slide 1 cover ── */
+  #s1 { background: linear-gradient(145deg, #050c20 0%, #0a1835 50%, #03152e 100%); align-items: center; justify-content: center; }
+  .cover-title { font-size: 40px; font-weight: 900; color: white; line-height: 1.1; margin-bottom: 12px; }
+  .cover-title span { color: #01adff; }
+  .cover-sub { font-size: 16px; color: rgba(255,255,255,0.5); margin-bottom: 32px; }
+  .cover-pills { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .pill { padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+
+  /* ── Slide 2 problem ── */
+  #s2 { background: #0d1a2e; }
+  .problem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .problem-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 20px; }
+  .problem-icon { font-size: 28px; margin-bottom: 10px; }
+  .problem-title { font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.85); margin-bottom: 6px; }
+  .problem-text { font-size: 12px; color: rgba(255,255,255,0.45); line-height: 1.6; }
+
+  /* ── Slide 3 overview ── */
+  #s3 { background: #07111f; }
+  .pillar-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 8px; }
+  .pillar { text-align: center; padding: 28px 20px; border-radius: 18px; }
+  .pillar-icon { font-size: 36px; margin-bottom: 14px; }
+  .pillar-label { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
+  .pillar-desc { font-size: 12px; line-height: 1.6; }
+
+  /* ── Slide 4 flow ── */
+  #s4 { background: #07111f; }
+  .flow-row { display: flex; align-items: flex-start; gap: 0; margin-top: 10px; }
+  .flow-step { flex: 1; text-align: center; position: relative; }
+  .flow-step:not(:last-child)::after { content: '→'; position: absolute; right: -12px; top: 28px; font-size: 20px; color: rgba(255,255,255,0.2); }
+  .flow-circle { width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  .flow-name { font-size: 13px; font-weight: 700; color: white; margin-bottom: 4px; }
+  .flow-hint { font-size: 11px; color: rgba(255,255,255,0.35); line-height: 1.5; }
+  .flow-note { background: rgba(1,173,255,0.08); border: 1px solid rgba(1,173,255,0.2); border-radius: 10px; padding: 14px 18px; margin-top: 24px; font-size: 12px; color: rgba(255,255,255,0.6); line-height: 1.6; }
+
+  /* ── Slide 5 timer ── */
+  #s5 { background: #07111f; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
+  .timer-mock { background: linear-gradient(135deg, #0f172a, #1e3a5f); border-radius: 16px; padding: 20px; border: 2px solid #16a34a40; }
+  .timer-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 10px; }
+  .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: #16a34a; }
+  .timer-status { font-size: 11px; font-weight: 700; color: #86efac; }
+  .timer-time { font-size: 36px; font-weight: 800; color: white; font-family: monospace; text-align: center; margin: 12px 0; letter-spacing: -1px; }
+  .timer-os { background: rgba(255,255,255,0.07); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; }
+  .timer-os-label { font-size: 10px; color: rgba(255,255,255,0.4); }
+  .timer-os-val { font-size: 13px; font-weight: 700; color: white; }
+  .timer-os-svc { font-size: 12px; color: rgba(255,255,255,0.6); }
+  .timer-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .timer-btn-p { padding: 8px; border-radius: 8px; border: none; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .feature-list { list-style: none; display: flex; flex-direction: column; gap: 14px; margin-top: 8px; }
+  .feature-item { display: flex; align-items: flex-start; gap: 12px; }
+  .f-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+  .f-text h4 { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.9); margin-bottom: 2px; }
+  .f-text p { font-size: 11px; color: rgba(255,255,255,0.4); line-height: 1.5; }
+
+  /* ── Slide 6 dashboard ── */
+  #s6 { background: #07111f; }
+  .dash-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .dash-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; }
+  .dash-card-label { font-size: 10px; color: rgba(255,255,255,0.4); margin-bottom: 6px; }
+  .dash-card-val { font-size: 22px; font-weight: 800; }
+  .dash-bar-wrap { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; }
+  .bar-label { display: flex; justify-content: space-between; font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 8px; }
+  .bar-track { background: rgba(255,255,255,0.1); border-radius: 100px; height: 10px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 100px; background: linear-gradient(90deg, #005198, #01adff); }
+  .apt-list { margin-top: 16px; display: flex; flex-direction: column; gap: 6px; }
+  .apt-row { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; }
+  .apt-os { font-size: 13px; font-weight: 700; color: white; }
+  .apt-svc { font-size: 11px; color: rgba(255,255,255,0.4); }
+  .apt-time { font-size: 13px; font-weight: 700; color: #01adff; }
+
+  /* ── Slide 7 gerencial ── */
+  #s7 { background: #07111f; }
+  .team-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 4px; }
+  .team-card { border-radius: 14px; padding: 16px; border: 2px solid; }
+  .team-avatar { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; margin-bottom: 10px; }
+  .team-name { font-size: 13px; font-weight: 700; color: white; margin-bottom: 4px; }
+  .team-status { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 12px; display: inline-block; margin-bottom: 10px; }
+  .team-os { font-size: 11px; color: rgba(255,255,255,0.6); margin-bottom: 10px; }
+  .mini-bar { background: rgba(255,255,255,0.12); border-radius: 100px; height: 5px; overflow: hidden; margin-bottom: 4px; }
+  .mini-fill { height: 100%; border-radius: 100px; }
+  .mini-pct { font-size: 10px; color: rgba(255,255,255,0.4); text-align: right; }
+
+  /* ── Slide 8 excel ── */
+  #s8 { background: #07111f; }
+  .excel-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .excel-tab { padding: 8px 18px; border-radius: 8px; border: 2px solid; font-size: 12px; font-weight: 700; }
+  .excel-table { background: rgba(255,255,255,0.04); border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); }
+  .etable { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .etable thead td { padding: 9px 12px; background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5); font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .etable tbody td { padding: 9px 12px; color: rgba(255,255,255,0.75); border-top: 1px solid rgba(255,255,255,0.05); }
+
+  /* ── Slide 9 alerts ── */
+  #s9 { background: #07111f; }
+  .alert-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .alert-card { border-radius: 14px; padding: 18px; border: 1px solid; }
+  .alert-type { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+  .alert-title { font-size: 14px; font-weight: 700; color: white; margin-bottom: 6px; }
+  .alert-desc { font-size: 12px; line-height: 1.6; }
+  .alert-trigger { display: inline-block; margin-top: 8px; font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 20px; }
+
+  /* ── Slide 10 setup ── */
+  #s10 { background: #07111f; }
+  .steps { display: flex; flex-direction: column; gap: 14px; }
+  .step { display: flex; gap: 16px; align-items: flex-start; }
+  .step-num { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #005198, #01adff); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: white; flex-shrink: 0; }
+  .step-body h4 { font-size: 14px; font-weight: 700; color: white; margin-bottom: 3px; }
+  .step-body p { font-size: 12px; color: rgba(255,255,255,0.45); line-height: 1.5; }
+  .step-code { margin-top: 6px; background: rgba(1,173,255,0.08); border: 1px solid rgba(1,173,255,0.2); border-radius: 6px; padding: 6px 10px; font-family: monospace; font-size: 11px; color: #7dd3fc; }
+
+  .white { color: white; }
+  .muted { color: rgba(255,255,255,0.45); }
+  .sky { color: #01adff; }
+  .green { color: #83c410; }
+  .orange { color: #f59e0b; }
+</style>
+</head>
+<body>
+<div class="deck">
+
+<!-- Slide 1: Capa -->
+<div class="slide active" id="s1">
+  <div style="text-align:center;max-width:680px;margin:auto;padding:0 32px;">
+    <svg width="64" height="64" viewBox="0 0 64 64" fill="none" style="margin:0 auto 28px;display:block">
+      <polygon points="32,4 58,18 58,46 32,60 6,46 6,18" fill="#005198" opacity="0.3"/>
+      <polygon points="32,10 54,22 54,46 32,58 10,46 10,22" fill="#01adff" opacity="0.2"/>
+      <polygon points="32,16 50,26 50,46 32,56 14,46 14,26" fill="#01adff" opacity="0.4"/>
+      <text x="32" y="38" text-anchor="middle" font-size="18" font-weight="900" fill="white" font-family="monospace">CS</text>
+    </svg>
+    <div class="cover-title">Controle de <span>Horas Técnicas</span></div>
+    <div class="cover-sub">HXG Centro de Serviço · Módulo de Registro e Acompanhamento de Atividades</div>
+    <div class="cover-pills">
+      <div class="pill" style="background:#005198;color:#7dd3fc;">⏱ Timer em tempo real</div>
+      <div class="pill" style="background:#15803d22;color:#86efac;border:1px solid #16a34a44;">📊 Dashboard gerencial</div>
+      <div class="pill" style="background:#92400e22;color:#fcd34d;border:1px solid #d9770644;">📥 Export Excel (.xlsx)</div>
+    </div>
+    <div style="margin-top:32px;font-size:12px;color:rgba(255,255,255,0.2);">Use as setas ← → ou teclas do teclado para navegar · 10 slides</div>
+  </div>
+</div>
+
+<!-- Slide 2: O problema -->
+<div class="slide" id="s2">
+  <div class="slide-inner">
+    <div class="tag" style="background:#dc262622;color:#fca5a5;">Contexto</div>
+    <div class="slide-title white">Por que precisamos disso?</div>
+    <div class="slide-sub muted">Sem um sistema formal, horas técnicas ficam invisíveis.</div>
+    <div class="problem-grid">
+      <div class="problem-card"><div class="problem-icon">📋</div><div class="problem-title">Sem rastreabilidade</div><div class="problem-text">Não há como saber quanto tempo foi gasto em cada OS. Relatórios são feitos de memória ou retroativamente.</div></div>
+      <div class="problem-card"><div class="problem-icon">👥</div><div class="problem-title">Gestor sem visibilidade</div><div class="problem-text">Impossível saber em tempo real quem está trabalhando em quê, ou se algum técnico ficou ocioso.</div></div>
+      <div class="problem-card"><div class="problem-icon">📉</div><div class="problem-title">Utilização desconhecida</div><div class="problem-text">Meta de 44h/semana existe, mas não há como medir se está sendo atingida ou onde as horas estão sendo gastas.</div></div>
+      <div class="problem-card"><div class="problem-icon">📂</div><div class="problem-title">Dados para análise externa</div><div class="problem-text">Planilhas manuais inconsistentes. Não há base de dados estruturada para cruzar com OS do ERP.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 3: Pilares -->
+<div class="slide" id="s3">
+  <div class="slide-inner">
+    <div class="tag" style="background:#005198;color:#7dd3fc;">Visão geral</div>
+    <div class="slide-title white">O módulo em 3 pilares</div>
+    <div class="slide-sub muted">Cada pilar resolve uma parte do problema.</div>
+    <div class="pillar-row">
+      <div class="pillar" style="background:rgba(1,173,255,0.08);border:1px solid rgba(1,173,255,0.2);">
+        <div class="pillar-icon">⏱</div><div class="pillar-label sky">Registrar</div>
+        <div class="pillar-desc muted">Técnico inicia, pausa, retoma e finaliza atividades pelo navegador. Timer roda em tempo real.</div>
+      </div>
+      <div class="pillar" style="background:rgba(131,196,16,0.08);border:1px solid rgba(131,196,16,0.2);">
+        <div class="pillar-icon">📊</div><div class="pillar-label green">Monitorar</div>
+        <div class="pillar-desc muted">Gestor vê em tempo real quem está ativo, em qual OS, há quanto tempo — com auto-refresh a cada minuto.</div>
+      </div>
+      <div class="pillar" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);">
+        <div class="pillar-icon">📥</div><div class="pillar-label orange">Analisar</div>
+        <div class="pillar-desc muted">Relatórios com filtros avançados e exportação Excel com 4 abas para análise externa.</div>
+      </div>
+    </div>
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin-top:20px;font-size:13px;color:rgba(255,255,255,0.55);text-align:center;">
+      Tudo armazenado no <strong style="color:#01adff;">Supabase</strong> — dados persistem mesmo que o navegador feche. Cada técnico opera de forma totalmente independente.
+    </div>
+  </div>
+</div>
+
+<!-- Slide 4: Fluxo -->
+<div class="slide" id="s4">
+  <div class="slide-inner">
+    <div class="tag" style="background:#16a34a22;color:#86efac;">Fluxo de trabalho</div>
+    <div class="slide-title white">Como o técnico registra</div>
+    <div class="slide-sub muted">Um apontamento por vez. Cada etapa é salva automaticamente no banco.</div>
+    <div class="flow-row">
+      <div class="flow-step"><div class="flow-circle" style="background:#005198;">🔢</div><div class="flow-name">Informa OS</div><div class="flow-hint">Digita o nº — busca automática na base</div></div>
+      <div class="flow-step"><div class="flow-circle" style="background:#16a34a;">▶</div><div class="flow-name">Inicia</div><div class="flow-hint">Seleciona serviço e clica em Iniciar</div></div>
+      <div class="flow-step"><div class="flow-circle" style="background:#d97706;">⏸</div><div class="flow-name">Pausa</div><div class="flow-hint">Informa motivo (café, almoço, reunião...)</div></div>
+      <div class="flow-step"><div class="flow-circle" style="background:#16a34a;">⏯</div><div class="flow-name">Retoma</div><div class="flow-hint">Pausa não conta como produtivo</div></div>
+      <div class="flow-step"><div class="flow-circle" style="background:#01adff;">✅</div><div class="flow-name">Finaliza</div><div class="flow-hint">Sistema calcula produtivo vs. pausa</div></div>
+    </div>
+    <div class="flow-note"><strong style="color:#01adff;">Regra principal:</strong> um técnico só pode ter <strong style="color:white;">um apontamento ativo por vez</strong>. Três técnicos podem gravar simultaneamente em OS diferentes — sem conflito.</div>
+  </div>
+</div>
+
+<!-- Slide 5: Timer -->
+<div class="slide" id="s5">
+  <div class="slide-inner">
+    <div class="tag" style="background:#005198;color:#7dd3fc;">Componente principal</div>
+    <div class="slide-title white">Timer Flutuante</div>
+    <div class="slide-sub muted">Aparece no canto inferior direito em todas as páginas.</div>
+    <div class="two-col">
+      <div>
+        <div class="timer-mock">
+          <div class="timer-header"><div class="pulse-dot"></div><div class="timer-status">Em andamento</div><div style="margin-left:auto;font-size:11px;color:rgba(255,255,255,0.4);">▽ Minimizar</div></div>
+          <div class="timer-time">02:34:17</div>
+          <div class="timer-os"><div class="timer-os-label">OS · Serviço</div><div class="timer-os-val">OS 7849-2025</div><div class="timer-os-svc">Standard Maintenance</div></div>
+          <div class="timer-btns">
+            <div class="timer-btn-p" style="background:rgba(245,158,11,0.2);color:#fcd34d;">⏸ Pausar</div>
+            <div class="timer-btn-p" style="background:rgba(1,173,255,0.2);color:#7dd3fc;">✅ Finalizar</div>
+          </div>
+        </div>
+      </div>
+      <ul class="feature-list">
+        <li class="feature-item"><div class="f-icon" style="background:#005198;">🔄</div><div class="f-text"><h4>Persiste entre páginas</h4><p>Timer continua mesmo ao navegar. Salvo no localStorage + Supabase.</p></div></li>
+        <li class="feature-item"><div class="f-icon" style="background:#16a34a22;">📐</div><div class="f-text"><h4>Cálculo preciso</h4><p>Tempo produtivo = total − pausas. Cada pausa tem início e fim registrados.</p></div></li>
+        <li class="feature-item"><div class="f-icon" style="background:#d9770622;">⏸</div><div class="f-text"><h4>Pausado = tempo congelado</h4><p>Contador para enquanto pausado. Pausa contabilizada separadamente.</p></div></li>
+        <li class="feature-item"><div class="f-icon" style="background:#92400e22;">🔔</div><div class="f-text"><h4>Alertas contextuais</h4><p>Avisa quando o turno está terminando ou há muito tempo pausado.</p></div></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 6: Dashboard -->
+<div class="slide" id="s6">
+  <div class="slide-inner">
+    <div class="tag" style="background:#8b5cf622;color:#c4b5fd;">Para o técnico</div>
+    <div class="slide-title white">Painel Pessoal</div>
+    <div class="slide-sub muted">Cada técnico vê seu próprio desempenho do dia.</div>
+    <div class="dash-grid">
+      <div class="dash-card"><div class="dash-card-label">Horas produtivas</div><div class="dash-card-val sky">5h 22min</div></div>
+      <div class="dash-card"><div class="dash-card-label">Utilização</div><div class="dash-card-val" style="color:#d97706;">61%</div></div>
+      <div class="dash-card"><div class="dash-card-label">OS atendidas</div><div class="dash-card-val green">3</div></div>
+      <div class="dash-card"><div class="dash-card-label">Tempo em pausas</div><div class="dash-card-val" style="color:#94a3b8;">48min</div></div>
+    </div>
+    <div class="dash-bar-wrap" style="margin-top:12px;"><div class="bar-label"><span>Progresso da meta (8h48)</span><span class="sky">61%</span></div><div class="bar-track"><div class="bar-fill" style="width:61%"></div></div></div>
+    <div class="apt-list">
+      <div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:8px;margin-bottom:4px;">APONTAMENTOS DE HOJE</div>
+      <div class="apt-row"><div><div class="apt-os">OS 7849-2025</div><div class="apt-svc">Standard Maintenance · 09:12 → 12:04</div></div><div class="apt-time">2h 52min</div></div>
+      <div class="apt-row"><div><div class="apt-os">OS 7851-2025</div><div class="apt-svc">Inspection · 13:15 → 15:33</div></div><div class="apt-time">2h 18min</div></div>
+      <div class="apt-row"><div><div class="apt-os">OS 7853-2025</div><div class="apt-svc">Extended Maintenance · Em andamento</div></div><div class="apt-time sky">• Em curso</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 7: Gerencial -->
+<div class="slide" id="s7">
+  <div class="slide-inner">
+    <div class="tag" style="background:#16a34a22;color:#86efac;">Para o gestor</div>
+    <div class="slide-title white">Visão da Equipe em Tempo Real</div>
+    <div class="slide-sub muted">3 técnicos gravando simultaneamente — cada um em sua OS.</div>
+    <div class="team-grid">
+      <div class="team-card" style="background:#0d2118;border-color:#16a34a44;">
+        <div class="team-avatar" style="background:linear-gradient(135deg,#16a34a,#22c55e);color:white;">J</div>
+        <div class="team-name">João Silva</div>
+        <div class="team-status" style="background:#dcfce7;color:#15803d;">● Gravando</div>
+        <div class="team-os">OS 7849-2025 · Standard Maint.<br><span style="color:rgba(255,255,255,0.3);font-size:10px;">há 1h 34min</span></div>
+        <div class="mini-bar"><div class="mini-fill" style="width:78%;background:#16a34a;"></div></div>
+        <div class="mini-pct">78% da meta</div>
+      </div>
+      <div class="team-card" style="background:#1c1300;border-color:#d9770644;">
+        <div class="team-avatar" style="background:linear-gradient(135deg,#d97706,#f59e0b);color:white;">M</div>
+        <div class="team-name">Maria Souza</div>
+        <div class="team-status" style="background:#fef9c3;color:#92400e;">⏸ Pausado</div>
+        <div class="team-os">OS 7852-2025 · Inspection<br><span style="color:rgba(255,255,255,0.3);font-size:10px;">pausa: almoço</span></div>
+        <div class="mini-bar"><div class="mini-fill" style="width:52%;background:#d97706;"></div></div>
+        <div class="mini-pct">52% da meta</div>
+      </div>
+      <div class="team-card" style="background:#0d1524;border-color:#01adff44;">
+        <div class="team-avatar" style="background:linear-gradient(135deg,#005198,#01adff);color:white;">C</div>
+        <div class="team-name">Carlos Lima</div>
+        <div class="team-status" style="background:#dcfce7;color:#15803d;">● Gravando</div>
+        <div class="team-os">OS 7856-2025 · Extended Maint.<br><span style="color:rgba(255,255,255,0.3);font-size:10px;">há 45min</span></div>
+        <div class="mini-bar"><div class="mini-fill" style="width:91%;background:#01adff;"></div></div>
+        <div class="mini-pct">91% da meta</div>
+      </div>
+    </div>
+    <div style="background:rgba(1,173,255,0.08);border:1px solid rgba(1,173,255,0.2);border-radius:10px;padding:12px 16px;margin-top:16px;font-size:12px;color:rgba(255,255,255,0.6);">
+      <strong style="color:#01adff;">Gravações simultâneas são seguras:</strong> cada apontamento é uma linha independente no banco com UUID próprio. Sem conflitos mesmo que os 3 gravem ao mesmo tempo.
+    </div>
+  </div>
+</div>
+
+<!-- Slide 8: Excel -->
+<div class="slide" id="s8">
+  <div class="slide-inner">
+    <div class="tag" style="background:#16a34a22;color:#86efac;">Relatórios</div>
+    <div class="slide-title white">Export Excel — 4 abas</div>
+    <div class="slide-sub muted">Um arquivo .xlsx completo para análises externas.</div>
+    <div class="excel-tabs">
+      <div class="excel-tab" style="border-color:#005198;background:#005198;color:white;">① Apontamentos</div>
+      <div class="excel-tab" style="border-color:rgba(255,255,255,0.15);color:rgba(255,255,255,0.5);">② Por Técnico</div>
+      <div class="excel-tab" style="border-color:rgba(255,255,255,0.15);color:rgba(255,255,255,0.5);">③ Por OS</div>
+      <div class="excel-tab" style="border-color:rgba(255,255,255,0.15);color:rgba(255,255,255,0.5);">④ Pausas</div>
+    </div>
+    <div class="excel-table">
+      <table class="etable">
+        <thead><tr><td>OS</td><td>Técnico</td><td>Serviço</td><td>Data</td><td>Início</td><td>Fim</td><td>Produtivo (h)</td><td>Status</td></tr></thead>
+        <tbody>
+          <tr><td>7849-2025</td><td>João Silva</td><td>Standard Maint.</td><td>14/06/2026</td><td>09:12</td><td>12:04</td><td style="color:#01adff;font-weight:700;">2.87</td><td><span style="background:#dcfce733;color:#86efac;padding:2px 7px;border-radius:8px;font-size:10px;">Finalizado</span></td></tr>
+          <tr><td>7852-2025</td><td>Maria Souza</td><td>Inspection</td><td>14/06/2026</td><td>13:15</td><td>—</td><td style="color:#fcd34d;font-weight:700;">—</td><td><span style="background:#fef9c333;color:#fcd34d;padding:2px 7px;border-radius:8px;font-size:10px;">Pausado</span></td></tr>
+          <tr><td>7856-2025</td><td>Carlos Lima</td><td>Extended Maint.</td><td>14/06/2026</td><td>13:00</td><td>—</td><td style="color:#86efac;font-weight:700;">—</td><td><span style="background:#dcfce733;color:#01adff;padding:2px 7px;border-radius:8px;font-size:10px;">Em andamento</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;">
+      <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 14px;font-size:12px;color:rgba(255,255,255,0.55);"><strong style="color:white;">Aba "Por Técnico"</strong><br>Totais por pessoa: produtivo, pausas, OS, % utilização</div>
+      <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 14px;font-size:12px;color:rgba(255,255,255,0.55);"><strong style="color:white;">Aba "Por OS"</strong><br>Tempo acumulado por ordem, ordenado por horas</div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 9: Alertas -->
+<div class="slide" id="s9">
+  <div class="slide-inner">
+    <div class="tag" style="background:#dc262622;color:#fca5a5;">Sistema de alertas</div>
+    <div class="slide-title white">Alertas Inteligentes</div>
+    <div class="slide-sub muted">Notificações automáticas baseadas na jornada (08h–11h48 / 13h–18h).</div>
+    <div class="alert-grid">
+      <div class="alert-card" style="background:#1f0a0a;border-color:#dc262633;"><div class="alert-type" style="color:#f87171;">🔔 Ociosidade</div><div class="alert-title">Sem apontamento ativo</div><div class="alert-desc" style="color:rgba(255,255,255,0.45);">Técnico em horário de trabalho sem atividade registrada.</div><div class="alert-trigger" style="background:#dc262622;color:#fca5a5;">Após 30 min ocioso</div></div>
+      <div class="alert-card" style="background:#1c1300;border-color:#d9770633;"><div class="alert-type" style="color:#fcd34d;">⚠ Atividade longa</div><div class="alert-title">Sem pausas registradas</div><div class="alert-desc" style="color:rgba(255,255,255,0.45);">Técnico em atividade contínua por muito tempo — possível esquecimento.</div><div class="alert-trigger" style="background:#d9770622;color:#fcd34d;">Após 4h contínuas</div></div>
+      <div class="alert-card" style="background:#0a0f1e;border-color:#3b82f633;"><div class="alert-type" style="color:#93c5fd;">🕐 Fim de turno</div><div class="alert-title">Finalize os apontamentos</div><div class="alert-desc" style="color:rgba(255,255,255,0.45);">Aviso antes do encerramento do turno para não deixar registros abertos.</div><div class="alert-trigger" style="background:#3b82f622;color:#93c5fd;">5 min antes de 11:48 e 18:00</div></div>
+      <div class="alert-card" style="background:#0a1f0a;border-color:#16a34a33;"><div class="alert-type" style="color:#86efac;">☕ Hora do café</div><div class="alert-title">Sugestão de pausa</div><div class="alert-desc" style="color:rgba(255,255,255,0.45);">Lembrete de pausar no horário habitual de café. Auto-fecha em 10 min.</div><div class="alert-trigger" style="background:#16a34a22;color:#86efac;">~09:00 e ~15:00</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Slide 10: Setup -->
+<div class="slide" id="s10">
+  <div class="slide-inner">
+    <div class="tag" style="background:#005198;color:#7dd3fc;">Setup inicial</div>
+    <div class="slide-title white">Como ativar o módulo</div>
+    <div class="slide-sub muted">Apenas 3 passos — o módulo já está no ar.</div>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-body"><h4>Execute o SQL no Supabase</h4><p>Abra o SQL Editor e execute o arquivo <code style="color:#7dd3fc;">supabase_horas_schema.sql</code>. Cria as 5 tabelas.</p><div class="step-code">supabase.com/dashboard/project/nkohoaygnnpvmjattzit/sql/new</div></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-body"><h4>Acesse o app CS</h4><p>O módulo já substituiu o placeholder "Em desenvolvimento". Faça login ou venha pelo SSO do Portal.</p></div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-body"><h4>Inicie o primeiro apontamento</h4><p>Informe a OS, selecione o serviço e clique em <strong style="color:#01adff;">Iniciar Apontamento</strong>.</p></div></div>
+      <div class="step"><div class="step-num" style="background:linear-gradient(135deg,#15803d,#16a34a);">✓</div><div class="step-body"><h4>Opcional: importe a base de OS</h4><p>Insira os dados da planilha na tabela <code style="color:#7dd3fc;">base_administrativa_cs</code> para habilitar a busca automática.</p></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Nav -->
+<div class="nav">
+  <button class="nav-btn" id="prev" onclick="go(-1)" disabled>← Anterior</button>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+    <div class="dot-row" id="dots"></div>
+    <div class="slide-counter" id="counter">1 / 10</div>
+  </div>
+  <button class="nav-btn" id="next" onclick="go(1)">Próximo →</button>
+</div>
+</div>
+
+<script>
+  let cur = 0;
+  const slides = document.querySelectorAll('.slide');
+  const n = slides.length;
+  const dotsEl = document.getElementById('dots');
+  const counterEl = document.getElementById('counter');
+  const prevBtn = document.getElementById('prev');
+  const nextBtn = document.getElementById('next');
+  for (let i = 0; i < n; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.onclick = () => go(i - cur);
+    dotsEl.appendChild(d);
+  }
+  function go(delta) {
+    const next = Math.max(0, Math.min(n - 1, cur + delta));
+    if (next === cur) return;
+    slides[cur].classList.remove('active');
+    slides[next].classList.add('active');
+    cur = next;
+    document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === cur));
+    counterEl.textContent = `${cur + 1} / ${n}`;
+    prevBtn.disabled = cur === 0;
+    nextBtn.disabled = cur === n - 1;
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ') go(1);
+    if (e.key === 'ArrowLeft') go(-1);
+  });
+</script>
+</body>
+</html>
